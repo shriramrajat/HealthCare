@@ -40,7 +40,18 @@ function App() {
   useEffect(() => {
     console.log('App component - User state changed:', user);
     console.log('App component - Loading state:', loading);
+    console.log('App component - Current pathname:', window.location.pathname);
   }, [user, loading]);
+
+  // Track route changes
+  useEffect(() => {
+    const handleRouteChange = () => {
+      console.log('Route changed to:', window.location.pathname);
+    };
+    
+    window.addEventListener('popstate', handleRouteChange);
+    return () => window.removeEventListener('popstate', handleRouteChange);
+  }, []);
 
   const login = (userData: User, token: string) => {
     console.log('Login called with:', userData);

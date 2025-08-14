@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
-import { Appointment, Doctor } from '../types';
+import { Appointment } from '../types';
 import { 
   Plus, 
   Calendar, 
@@ -12,20 +12,19 @@ import {
   MapPin, 
   CheckCircle, 
   XCircle,
-  Clock3,
-  AlertCircle
+  Search,
+  Filter
 } from 'lucide-react';
 
 const Appointments: React.FC = () => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [showNewAppointmentForm, setShowNewAppointmentForm] = useState(false);
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
-  const [selectedDoctor, setSelectedDoctor] = useState('');
-  const [appointmentType, setAppointmentType] = useState<'in-person' | 'teleconsultation'>('in-person');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
+  const [showBookingForm, setShowBookingForm] = useState(false);
 
   // Debug logging
   console.log('Appointments page loaded, user:', user);
@@ -36,10 +35,10 @@ const Appointments: React.FC = () => {
     const mockAppointments: Appointment[] = [
       {
         id: '1',
-        doctorId: user?.role === 'patient' ? '1' : user?.id || '1',
-        patientId: user?.role === 'patient' ? user?.id || '2' : '2',
-        doctorName: user?.role === 'patient' ? 'Dr. Sarah Johnson' : user?.name || 'Dr. Sarah Johnson',
-        patientName: user?.role === 'patient' ? user?.name || 'John Doe' : 'John Doe',
+        doctorId: '1',
+        patientId: user?.id || '1',
+        doctorName: 'Dr. Sarah Johnson',
+        patientName: user?.name || 'John Doe',
         date: new Date().toISOString().split('T')[0],
         time: '09:00',
         type: 'teleconsultation',
@@ -48,10 +47,10 @@ const Appointments: React.FC = () => {
       },
       {
         id: '2',
-        doctorId: user?.role === 'patient' ? '2' : user?.id || '1',
-        patientId: user?.role === 'patient' ? user?.id || '3' : '3',
-        doctorName: user?.role === 'patient' ? 'Dr. Michael Brown' : user?.name || 'Dr. Sarah Johnson',
-        patientName: user?.role === 'patient' ? user?.name || 'Jane Smith' : 'Jane Smith',
+        doctorId: '2',
+        patientId: user?.id || '1',
+        doctorName: 'Dr. Michael Brown',
+        patientName: user?.name || 'John Doe',
         date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '14:30',
         type: 'in-person',
@@ -60,32 +59,25 @@ const Appointments: React.FC = () => {
       },
       {
         id: '3',
-        doctorId: user?.role === 'patient' ? '1' : user?.id || '1',
-        patientId: user?.role === 'patient' ? user?.id || '4' : '4',
-        doctorName: user?.role === 'patient' ? 'Dr. Sarah Johnson' : user?.name || 'Dr. Sarah Johnson',
-        patientName: user?.role === 'patient' ? user?.name || 'Bob Wilson' : 'Bob Wilson',
+        doctorId: '1',
+        patientId: user?.id || '1',
+        doctorName: 'Dr. Sarah Johnson',
+        patientName: user?.name || 'John Doe',
         date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '11:00',
         type: 'teleconsultation',
         status: 'pending',
         notes: 'Follow-up on medication adjustments'
-      },
-      {
-        id: '4',
-        doctorId: user?.role === 'patient' ? '3' : user?.id || '1',
-        patientId: user?.role === 'patient' ? user?.id || '5' : '5',
-        doctorName: user?.role === 'patient' ? 'Dr. Emily Chen' : user?.name || 'Dr. Sarah Johnson',
-        patientName: user?.role === 'patient' ? user?.name || 'Alice Cooper' : 'Alice Cooper',
-        date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        time: '15:30',
-        type: 'in-person',
-        status: 'confirmed',
-        notes: 'Regular check-up and lab results review'
       }
     ];
 
     setAppointments(mockAppointments);
-  }, [user]);
+    addNotification({
+      title: 'Appointments Loaded',
+      message: 'Your appointments have been loaded successfully.',
+      type: 'success'
+    });
+  }, [user, addNotification]);
 
   useEffect(() => {
     let filtered = appointments;
@@ -93,9 +85,7 @@ const Appointments: React.FC = () => {
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(apt =>
-        (user?.role === 'patient' ? apt.doctorName : apt.patientName)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
+        apt.doctorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         apt.notes?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -111,7 +101,7 @@ const Appointments: React.FC = () => {
     }
 
     setFilteredAppointments(filtered);
-  }, [appointments, searchTerm, statusFilter, typeFilter, user]);
+  }, [appointments, searchTerm, statusFilter, typeFilter]);
 
   const handleConfirmAppointment = (appointmentId: string) => {
     setAppointments(prev => 
@@ -145,14 +135,6 @@ const Appointments: React.FC = () => {
     });
   };
 
-  const handleJoinCall = (appointmentId: string) => {
-    addNotification({
-      title: 'Joining Teleconsultation',
-      message: 'Redirecting to video call...',
-      type: 'info'
-    });
-  };
-
   const getStatusStats = () => {
     return {
       all: appointments.length,
@@ -167,6 +149,11 @@ const Appointments: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
+      {/* Test Message */}
+      <div className="bg-green-100 border border-green-300 text-green-800 px-4 py-3 rounded">
+        ✅ Appointments page loaded successfully! User: {user?.name} | Role: {user?.role}
+      </div>
+      
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -214,7 +201,7 @@ const Appointments: React.FC = () => {
         
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+            <CheckCircle className="h-5 w-5 text-green-600" />
             <div>
               <p className="text-sm text-gray-600">Confirmed</p>
               <p className="text-xl font-semibold text-green-600">{stats.confirmed}</p>
@@ -224,7 +211,7 @@ const Appointments: React.FC = () => {
         
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+            <CheckCircle className="h-5 w-5 text-blue-600" />
             <div>
               <p className="text-sm text-gray-600">Completed</p>
               <p className="text-xl font-semibold text-blue-600">{stats.completed}</p>
@@ -234,7 +221,7 @@ const Appointments: React.FC = () => {
         
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+            <XCircle className="h-5 w-5 text-red-600" />
             <div>
               <p className="text-sm text-gray-600">Cancelled</p>
               <p className="text-xl font-semibold text-red-600">{stats.cancelled}</p>
@@ -252,7 +239,7 @@ const Appointments: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder={`Search by ${user?.role === 'patient' ? 'doctor name' : 'patient name'} or notes...`}
+                placeholder="Search by doctor name or notes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -266,7 +253,7 @@ const Appointments: React.FC = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -277,63 +264,114 @@ const Appointments: React.FC = () => {
           </div>
 
           {/* Type Filter */}
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Types</option>
-            <option value="in-person">In-Person</option>
-            <option value="teleconsultation">Teleconsultation</option>
-          </select>
+          <div className="flex items-center space-x-2">
+            <Filter className="h-4 w-4 text-gray-400" />
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Types</option>
+              <option value="in-person">In-Person</option>
+              <option value="teleconsultation">Teleconsultation</option>
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Appointments List */}
-      <div className="space-y-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">
+            {filteredAppointments.length} Appointment{filteredAppointments.length !== 1 ? 's' : ''}
+          </h2>
+        </div>
+        
         {filteredAppointments.length > 0 ? (
-          filteredAppointments.map((appointment) => (
-            <AppointmentCard
-              key={appointment.id}
-              appointment={appointment}
-              userRole={user?.role || 'patient'}
-              onConfirm={user?.role === 'doctor' ? handleConfirmAppointment : undefined}
-              onCancel={handleCancelAppointment}
-              onJoinCall={handleJoinCall}
-            />
-          ))
+          <div className="divide-y divide-gray-200">
+            {filteredAppointments.map((appointment) => (
+              <div key={appointment.id} className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className="text-lg font-medium text-gray-900">
+                        {appointment.doctorName}
+                      </h3>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                        appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {appointment.status}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                      <div className="flex items-center space-x-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>{new Date(appointment.date).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4" />
+                        <span>{appointment.time}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {appointment.type === 'teleconsultation' ? <Video className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
+                        <span className="text-sm text-gray-600">
+                          {appointment.type === 'teleconsultation' ? 'Video Call' : 'Clinic Visit'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {appointment.notes && (
+                      <p className="text-sm text-gray-600 mt-2">{appointment.notes}</p>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center space-x-3 ml-4">
+                    {user?.role === 'doctor' && appointment.status === 'pending' && (
+                      <button
+                        onClick={() => handleConfirmAppointment(appointment.id)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                      >
+                        Confirm
+                      </button>
+                    )}
+                    {appointment.status !== 'completed' && appointment.status !== 'cancelled' && (
+                      <button
+                        onClick={() => handleCancelAppointment(appointment.id)}
+                        className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <div className="p-12 text-center">
             <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No appointments found</h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600">
               {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
                 ? 'No appointments match your current filters.'
-                : user?.role === 'patient' 
-                  ? 'You haven\'t booked any appointments yet.'
-                  : 'No appointments scheduled yet.'
+                : 'You haven\'t booked any appointments yet.'
               }
             </p>
-            {user?.role === 'patient' && !searchTerm && statusFilter === 'all' && typeFilter === 'all' && (
-              <button
-                onClick={() => setShowBookingForm(true)}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Book Your First Appointment
-              </button>
-            )}
           </div>
         )}
       </div>
 
-      {/* Booking Form Modal (Placeholder) */}
+      {/* Simple Booking Form Modal */}
       {showBookingForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Book New Appointment</h2>
             <p className="text-gray-600 mb-6">
-              This is a placeholder for the appointment booking form. In a full implementation, 
-              this would include doctor selection, date/time picker, and appointment type selection.
+              This is a placeholder for the appointment booking form.
             </p>
             <div className="flex space-x-3">
               <button
