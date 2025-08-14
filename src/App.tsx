@@ -36,16 +36,25 @@ function App() {
     setLoading(false);
   }, []);
 
+  // Debug logging for routing
+  useEffect(() => {
+    console.log('App component - User state changed:', user);
+    console.log('App component - Loading state:', loading);
+  }, [user, loading]);
+
   const login = (userData: User, token: string) => {
+    console.log('Login called with:', userData);
     setUser(userData);
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const logout = () => {
+    console.log('Logout called');
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    sessionStorage.removeItem('hasShownWelcome'); // Clear welcome notification flag
   };
 
   const authValue: AuthContextType = {
@@ -119,6 +128,18 @@ function App() {
                     ) : (
                       <Navigate to="/login" />
                     )
+                  } 
+                />
+                {/* Debug route - remove in production */}
+                <Route 
+                  path="/debug" 
+                  element={
+                    <div className="p-4 bg-yellow-100 border border-yellow-300 rounded">
+                      <h2 className="text-lg font-bold mb-2">Debug Info</h2>
+                      <p>User: {JSON.stringify(user)}</p>
+                      <p>Loading: {loading.toString()}</p>
+                      <p>Current path: {window.location.pathname}</p>
+                    </div>
                   } 
                 />
               </Routes>

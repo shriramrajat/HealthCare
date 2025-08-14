@@ -1,19 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
-import AppointmentCard from '../components/AppointmentCard';
-import { Appointment } from '../types';
-import { Calendar, Plus, Filter, Search, Clock } from 'lucide-react';
+import { Appointment, Doctor } from '../types';
+import { 
+  Plus, 
+  Calendar, 
+  Clock, 
+  User, 
+  Video, 
+  Phone, 
+  MapPin, 
+  CheckCircle, 
+  XCircle,
+  Clock3,
+  AlertCircle
+} from 'lucide-react';
 
 const Appointments: React.FC = () => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [showNewAppointmentForm, setShowNewAppointmentForm] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedDoctor, setSelectedDoctor] = useState('');
+  const [appointmentType, setAppointmentType] = useState<'in-person' | 'teleconsultation'>('in-person');
+
+  // Debug logging
+  console.log('Appointments page loaded, user:', user);
+  console.log('Current pathname:', window.location.pathname);
 
   useEffect(() => {
     // Mock data - Replace with actual API calls

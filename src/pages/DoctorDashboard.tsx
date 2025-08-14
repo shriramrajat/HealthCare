@@ -115,11 +115,15 @@ const DoctorDashboard: React.FC = () => {
     });
 
     // Welcome notification
-    addNotification({
-      title: 'Good morning, Doctor',
-      message: `You have ${todayAppointments} appointments today.`,
-      type: 'info'
-    });
+    const hasShownWelcome = sessionStorage.getItem('hasShownWelcome');
+    if (!hasShownWelcome) {
+      addNotification({
+        title: 'Good morning, Doctor',
+        message: `You have ${todayAppointments} appointments today.`,
+        type: 'info'
+      });
+      sessionStorage.setItem('hasShownWelcome', 'true');
+    }
   }, [user, addNotification]);
 
   const handleConfirmAppointment = (appointmentId: string) => {
