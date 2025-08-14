@@ -95,12 +95,16 @@ const PatientDashboard: React.FC = () => {
       }
     ]);
 
-    // Welcome notification
-    addNotification({
-      title: 'Welcome to your Dashboard',
-      message: 'Track your health metrics and stay on top of your care.',
-      type: 'info'
-    });
+    // Only show welcome notification once per session
+    const hasShownWelcome = sessionStorage.getItem('hasShownWelcome');
+    if (!hasShownWelcome) {
+      addNotification({
+        title: 'Welcome to your Dashboard',
+        message: 'Track your health metrics and stay on top of your care.',
+        type: 'info'
+      });
+      sessionStorage.setItem('hasShownWelcome', 'true');
+    }
   }, [user, addNotification]);
 
   const calculateAdherenceRate = (medications: Medication[]) => {

@@ -28,8 +28,14 @@ const Header: React.FC = () => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleLogout = () => {
+    console.log('Logout clicked');
     logout();
     navigate('/login');
+  };
+
+  const handleNavClick = (path: string) => {
+    console.log('Navigation clicked:', path);
+    setIsMenuOpen(false);
   };
 
   const patientNavItems = [
@@ -84,6 +90,7 @@ const Header: React.FC = () => {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onClick={() => handleNavClick(item.path)}
                   className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     location.pathname === item.path
                       ? 'text-blue-600 bg-blue-50'
@@ -152,7 +159,7 @@ const Header: React.FC = () => {
                   <Link
                     key={item.path}
                     to={item.path}
-                    onClick={() => setIsMenuOpen(false)}
+                    onClick={() => handleNavClick(item.path)}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       location.pathname === item.path
                         ? 'text-blue-600 bg-blue-50'
