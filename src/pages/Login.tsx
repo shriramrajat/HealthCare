@@ -43,37 +43,31 @@ const Login: React.FC = () => {
     setErrors({});
 
     try {
-      // Mock authentication - Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Mock user data based on email
-      const isDoctor = email.includes('doctor') || email.includes('dr.');
-      const mockUser = {
-        id: '1',
-        email,
-        name: isDoctor ? 'Dr. Sarah Johnson' : 'John Doe',
-        role: isDoctor ? 'doctor' as const : 'patient' as const,
-        phone: '+1234567890',
-        ...(isDoctor ? {
-          specialization: 'Cardiology'
-        } : {
-          conditions: ['Diabetes Type 2', 'Hypertension']
-        })
-      };
-
-      const mockToken = 'mock-jwt-token';
-      
-      login(mockUser, mockToken);
+      const userData = await login(email, password);
       
       addNotification({
         title: 'Login Successful',
-        message: `Welcome back, ${mockUser.name}!`,
+        message: `Welcome back, ${userData.name}!`,
         type: 'success'
       });
 
-      navigate(mockUser.role === 'patient' ? '/dashboard' : '/doctor-dashboard');
-    } catch (error) {
-      setErrors({ general: 'Invalid email or password. Please try again.' });
+      navigate(userData.role === 'patient' ? '/dashboard' : '/doctor-dashboard');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      
+      // Handle different Firebase auth errors
+      let errorMessage = 'Invalid email or password. Please try again.';
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email address.';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Incorrect password. Please try again.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many failed attempts. Please try again later.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address.';
+      }
+      
+      setErrors({ general: errorMessage });
     } finally {
       setLoading(false);
     }

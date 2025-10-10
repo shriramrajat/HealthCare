@@ -11,9 +11,14 @@ export interface User {
 
 export interface AuthContextType {
   user: User | null;
-  login: (user: User, token: string) => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<User>;
+  register: (email: string, password: string, userData: Partial<User>) => Promise<User>;
+  logout: () => Promise<void>;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   isAuthenticated: boolean;
+  loading: boolean;
 }
 
 export interface HealthMetric {

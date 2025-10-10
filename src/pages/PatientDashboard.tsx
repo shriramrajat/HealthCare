@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import HealthMetricCard from '../components/HealthMetricCard';
 import { HealthMetric, Medication, Appointment } from '../types';
+import { firestoreService } from '../firebase/firestore';
 import { 
   Plus, 
   TrendingUp, 
@@ -23,88 +24,46 @@ const PatientDashboard: React.FC = () => {
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
 
   useEffect(() => {
-    // Mock data - Replace with actual API calls
-    setHealthMetrics([
-      {
-        id: '1',
-        type: 'blood_sugar',
-        value: '120',
-        unit: 'mg/dL',
-        recordedAt: new Date().toISOString(),
-        notes: 'Fasting glucose level'
-      },
-      {
-        id: '2',
-        type: 'blood_pressure',
-        value: '130/85',
-        unit: 'mmHg',
-        recordedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        notes: 'Slightly elevated'
-      },
-      {
-        id: '3',
-        type: 'weight',
-        value: '75.2',
-        unit: 'kg',
-        recordedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: '4',
-        type: 'heart_rate',
-        value: '72',
-        unit: 'bpm',
-        recordedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-      }
-    ]);
+    const loadDashboardData = async () => {
+      if (!user?.id) return;
 
-    setRecentMedications([
-      {
-        id: '1',
-        name: 'Metformin',
-        dosage: '500mg',
-        frequency: 'Twice daily',
-        startDate: '2024-01-01',
-        reminders: ['08:00', '20:00'],
-        adherence: [true, true, false, true],
-        notes: 'Take with meals'
-      },
-      {
-        id: '2',
-        name: 'Lisinopril',
-        dosage: '10mg',
-        frequency: 'Once daily',
-        startDate: '2024-01-15',
-        reminders: ['08:00'],
-        adherence: [true, true, true, true],
-        notes: 'For blood pressure'
-      }
-    ]);
+      try {
+        // Load health metrics
+        const metrics = await firestoreService.getHealthMetrics(user.id);
+        setHealthMetrics(metrics.slice(0, 4)); // Show latest 4
 
-    setUpcomingAppointments([
-      {
-        id: '1',
-        doctorId: '1',
-        patientId: user?.id || '1',
-        doctorName: 'Dr. Sarah Johnson',
-        patientName: user?.name || '',
-        date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        time: '14:30',
-        type: 'teleconsultation',
-        status: 'confirmed',
-        notes: 'Routine follow-up for diabetes management'
-      }
-    ]);
+        // Load medications
+        const medications = await firestoreService.getMedications(user.id);
+        setRecentMedications(medications.slice(0, 2)); // Show latest 2
 
-    // Only show welcome notification once per session
-    const hasShownWelcome = sessionStorage.getItem('hasShownWelcome');
-    if (!hasShownWelcome) {
-      addNotification({
-        title: 'Welcome to your Dashboard',
-        message: 'Track your health metrics and stay on top of your care.',
-        type: 'info'
-      });
-      sessionStorage.setItem('hasShownWelcome', 'true');
-    }
+        // Load appointments
+        const appointments = await firestoreService.getAppointments(user.id, 'patient');
+        const upcoming = appointments.filter(apt => 
+          new Date(apt.date) >= new Date() && apt.status !== 'cancelled'
+        );
+        setUpcomingAppointments(upcoming.slice(0, 3)); // Show next 3
+
+        // Only show welcome notification once per session
+        const hasShownWelcome = sessionStorage.getItem('hasShownWelcome');
+        if (!hasShownWelcome) {
+          addNotification({
+            title: 'Welcome to your Dashboard',
+            message: 'Track your health metrics and stay on top of your care.',
+            type: 'info'
+          });
+          sessionStorage.setItem('hasShownWelcome', 'true');
+        }
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        addNotification({
+          title: 'Error Loading Data',
+          message: 'Failed to load some dashboard information. Please try refreshing.',
+          type: 'error'
+        });
+      }
+    };
+
+    loadDashboardData();
   }, [user, addNotification]);
 
   const calculateAdherenceRate = (medications: Medication[]) => {

@@ -20,7 +20,7 @@ const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
-  const { login } = useAuth();
+  const { register } = useAuth();
   const { addNotification } = useNotifications();
   const navigate = useNavigate();
 
@@ -99,11 +99,7 @@ const Register: React.FC = () => {
     setErrors({});
 
     try {
-      // Mock registration - Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      const mockUser = {
-        id: Date.now().toString(),
+      const userData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -115,19 +111,29 @@ const Register: React.FC = () => {
         })
       };
 
-      const mockToken = 'mock-jwt-token';
-      
-      login(mockUser, mockToken);
+      const newUser = await register(formData.email, formData.password, userData);
       
       addNotification({
         title: 'Registration Successful',
-        message: `Welcome to HealthCare+, ${mockUser.name}!`,
+        message: `Welcome to HealthCare+, ${newUser.name}!`,
         type: 'success'
       });
 
-      navigate(mockUser.role === 'patient' ? '/dashboard' : '/doctor-dashboard');
-    } catch (error) {
-      setErrors({ general: 'Registration failed. Please try again.' });
+      navigate(newUser.role === 'patient' ? '/dashboard' : '/doctor-dashboard');
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      
+      // Handle different Firebase auth errors
+      let errorMessage = 'Registration failed. Please try again.';
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'An account with this email already exists.';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'Password should be at least 6 characters.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address.';
+      }
+      
+      setErrors({ general: errorMessage });
     } finally {
       setLoading(false);
     }

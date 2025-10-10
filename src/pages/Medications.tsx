@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Medication } from '../types';
+import { firestoreService } from '../firebase/firestore';
 import { 
   Pill, 
   Plus, 
@@ -14,49 +16,35 @@ import {
 } from 'lucide-react';
 
 const Medications: React.FC = () => {
+  const { user } = useAuth();
   const { addNotification } = useNotifications();
   const [medications, setMedications] = useState<Medication[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedMedication, setSelectedMedication] = useState<Medication | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data - Replace with actual API calls
-    const mockMedications: Medication[] = [
-      {
-        id: '1',
-        name: 'Metformin',
-        dosage: '500mg',
-        frequency: 'Twice daily',
-        startDate: '2024-01-01',
-        reminders: ['08:00', '20:00'],
-        adherence: [true, true, false, true, true, true, true, false, true, true, true, true, true, true],
-        notes: 'Take with meals to reduce stomach upset'
-      },
-      {
-        id: '2',
-        name: 'Lisinopril',
-        dosage: '10mg',
-        frequency: 'Once daily',
-        startDate: '2024-01-15',
-        reminders: ['08:00'],
-        adherence: [true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-        notes: 'For blood pressure control'
-      },
-      {
-        id: '3',
-        name: 'Atorvastatin',
-        dosage: '20mg',
-        frequency: 'Once daily',
-        startDate: '2024-02-01',
-        endDate: '2024-08-01',
-        reminders: ['21:00'],
-        adherence: [true, false, true, true, true, true, false, true, true, true, true, true, true, true],
-        notes: 'Take in the evening for better absorption'
-      }
-    ];
+    const loadMedications = async () => {
+      if (!user?.id) return;
 
-    setMedications(mockMedications);
-  }, []);
+      try {
+        setLoading(true);
+        const medicationsData = await firestoreService.getMedications(user.id);
+        setMedications(medicationsData);
+      } catch (error) {
+        console.error('Error loading medications:', error);
+        addNotification({
+          title: 'Error Loading Medications',
+          message: 'Failed to load your medications. Please try again.',
+          type: 'error'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMedications();
+  }, [user, addNotification]);
 
   const calculateAdherenceRate = (adherence: boolean[]) => {
     if (adherence.length === 0) return 100;
@@ -90,29 +78,55 @@ const Medications: React.FC = () => {
     ).filter(item => item.isUpcoming);
   };
 
-  const handleMarkAsTaken = (medicationId: string) => {
-    setMedications(prev => 
-      prev.map(med => 
-        med.id === medicationId 
-          ? { ...med, adherence: [...med.adherence, true] }
-          : med
-      )
-    );
-    
-    addNotification({
-      title: 'Medication Taken',
-      message: 'Great job staying on track with your medication!',
-      type: 'success'
-    });
+  const handleMarkAsTaken = async (medicationId: string) => {
+    try {
+      const medication = medications.find(med => med.id === medicationId);
+      if (!medication) return;
+
+      const updatedAdherence = [...medication.adherence, true];
+      await firestoreService.updateMedication(medicationId, { adherence: updatedAdherence });
+      
+      setMedications(prev => 
+        prev.map(med => 
+          med.id === medicationId 
+            ? { ...med, adherence: updatedAdherence }
+            : med
+        )
+      );
+      
+      addNotification({
+        title: 'Medication Taken',
+        message: 'Great job staying on track with your medication!',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating medication:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update medication. Please try again.',
+        type: 'error'
+      });
+    }
   };
 
-  const handleDeleteMedication = (medicationId: string) => {
-    setMedications(prev => prev.filter(med => med.id !== medicationId));
-    addNotification({
-      title: 'Medication Removed',
-      message: 'The medication has been removed from your list.',
-      type: 'info'
-    });
+  const handleDeleteMedication = async (medicationId: string) => {
+    try {
+      await firestoreService.deleteMedication(medicationId);
+      setMedications(prev => prev.filter(med => med.id !== medicationId));
+      
+      addNotification({
+        title: 'Medication Removed',
+        message: 'The medication has been removed from your list.',
+        type: 'info'
+      });
+    } catch (error) {
+      console.error('Error deleting medication:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to delete medication. Please try again.',
+        type: 'error'
+      });
+    }
   };
 
   const upcomingMeds = getUpcomingMedications();
