@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Review } from '../types';
+import { firestoreService } from '../firebase/firestore';
+import ReviewForm from '../components/forms/ReviewForm';
+import EditReviewForm from '../components/forms/EditReviewForm';
+import ReviewResponseForm from '../components/forms/ReviewResponseForm';
+import AnimatedModal from '../components/ui/AnimatedModal';
 import { 
   Star, 
   Plus, 
@@ -20,10 +25,21 @@ const Reviews: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [showAddReview, setShowAddReview] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [editingReview, setEditingReview] = useState<Review | null>(null);
+  const [respondingToReview, setRespondingToReview] = useState<Review | null>(null);
+  const [isUpdatingReview, setIsUpdatingReview] = useState(false);
 
   useEffect(() => {
-    // Mock data - Replace with actual API calls
-    const mockReviews: Review[] = user?.role === 'patient' ? [
+    const fetchReviews = async () => {
+      if (!user) return;
+
+      try {
+        if (user.role === 'patient') {
+          // For patients, we need to get reviews they've written
+          // Since we don't have a getReviewsByPatient method, we'll use mock data for now
+          // In a real implementation, you'd add this method to firestoreService
+          const mockReviews: Review[] = [
       // Patient's reviews of doctors
       {
         id: '1',
@@ -55,8 +71,18 @@ const Reviews: React.FC = () => {
         comment: 'Outstanding cardiologist! She helped me understand my heart condition and provided a comprehensive treatment plan.',
         date: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString()
       }
-    ] : [
-      // Doctor's reviews from patients
+          ];
+          setReviews(mockReviews);
+        } else {
+          // For doctors, get reviews about them
+          const doctorReviews = await firestoreService.getReviews(user.id);
+          setReviews(doctorReviews);
+        }
+      } catch (error) {
+        console.error('Error fetching reviews:', error);
+        // Fallback to mock data
+        const mockReviews: Review[] = user?.role === 'patient' ? [] : [
+          // Doctor's reviews from patients
       {
         id: '1',
         doctorId: user?.id || '1',
@@ -107,9 +133,12 @@ const Reviews: React.FC = () => {
         comment: 'Good doctor but the appointment was rushed. Could benefit from more time with patients.',
         date: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString()
       }
-    ];
+        ];
+        setReviews(mockReviews);
+      }
+    };
 
-    setReviews(mockReviews);
+    fetchReviews();
   }, [user]);
 
   useEffect(() => {
@@ -150,13 +179,128 @@ const Reviews: React.FC = () => {
     return distribution;
   };
 
-  const handleAddReview = () => {
-    setShowAddReview(false);
-    addNotification({
-      title: 'Review Submitted',
-      message: 'Thank you for your feedback!',
-      type: 'success'
-    });
+  const handleAddReview = async (reviewData: any) => {
+    if (!user) return;
+    
+    setIsSubmittingReview(true);
+    try {
+      // Get doctor name for the review
+      const doctor = await firestoreService.getUser(reviewData.doctorId) as any;
+      
+      const newReview: Omit<Review, 'id'> = {
+        doctorId: reviewData.doctorId,
+        patientId: user.id,
+        doctorName: doctor ? `Dr. ${doctor.name}` : 'Unknown Doctor',
+        patientName: reviewData.anonymous ? 'Anonymous' : user.name,
+        rating: reviewData.rating,
+        comment: reviewData.comment,
+        date: new Date().toISOString()
+      };
+
+      await firestoreService.addReview(newReview);
+      
+      // Update local state to show the new review immediately
+      setReviews(prev => [{ ...newReview, id: Date.now().toString() }, ...prev]);
+      
+      setShowAddReview(false);
+      addNotification({
+        title: 'Review Submitted',
+        message: 'Thank you for your feedback!',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to submit review. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const handleEditReview = async (reviewData: any) => {
+    if (!editingReview || !user) return;
+    
+    setIsUpdatingReview(true);
+    try {
+      const updatedReview: Partial<Review> = {
+        rating: reviewData.rating,
+        comment: reviewData.comment,
+        categories: reviewData.categories,
+        edited: true,
+        editedAt: new Date().toISOString()
+      };
+
+      await firestoreService.updateReview(editingReview.id, updatedReview);
+      
+      // Update local state
+      setReviews(prev => prev.map(review => 
+        review.id === editingReview.id 
+          ? { ...review, ...updatedReview }
+          : review
+      ));
+      
+      setEditingReview(null);
+      addNotification({
+        title: 'Review Updated',
+        message: 'Your review has been successfully updated.',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating review:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update review. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsUpdatingReview(false);
+    }
+  };
+
+  const handleRespondToReview = async (responseData: any) => {
+    if (!respondingToReview || !user) return;
+    
+    setIsUpdatingReview(true);
+    try {
+      const response = {
+        message: responseData.message,
+        doctorName: `Dr. ${user.name}`
+      };
+
+      await firestoreService.addReviewResponse(respondingToReview.id, response);
+      
+      // Update local state
+      setReviews(prev => prev.map(review => 
+        review.id === respondingToReview.id 
+          ? { 
+              ...review, 
+              response: {
+                ...response,
+                date: new Date().toISOString()
+              }
+            }
+          : review
+      ));
+      
+      setRespondingToReview(null);
+      addNotification({
+        title: 'Response Sent',
+        message: 'Your response has been posted successfully.',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error responding to review:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to send response. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsUpdatingReview(false);
+    }
   };
 
   const averageRating = getAverageRating();
@@ -339,13 +483,72 @@ const Reviews: React.FC = () => {
               
               <p className="text-gray-700 leading-relaxed">{review.comment}</p>
               
-              {user?.role === 'doctor' && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                    Respond to Review
-                  </button>
+              {/* Review metadata */}
+              <div className="mt-3 flex items-center space-x-4 text-xs text-gray-500">
+                {review.edited && (
+                  <span className="flex items-center space-x-1">
+                    <span>✏️</span>
+                    <span>Edited {new Date(review.editedAt!).toLocaleDateString()}</span>
+                  </span>
+                )}
+                {review.anonymous && (
+                  <span className="flex items-center space-x-1">
+                    <span>🔒</span>
+                    <span>Anonymous</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Doctor's response */}
+              {review.response && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <span className="text-sm font-medium text-blue-800">
+                      Response from {review.response.doctorName}
+                    </span>
+                    <span className="text-xs text-blue-600">
+                      {new Date(review.response.date).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-sm text-blue-700 leading-relaxed">
+                    {review.response.message}
+                  </p>
                 </div>
               )}
+              
+              {/* Action buttons */}
+              <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+                <div className="flex space-x-3">
+                  {user?.role === 'patient' && review.patientId === user.id && (
+                    <button 
+                      onClick={() => setEditingReview(review)}
+                      className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1"
+                    >
+                      <span>✏️</span>
+                      <span>Edit Review</span>
+                    </button>
+                  )}
+                  
+                  {user?.role === 'doctor' && review.doctorId === user.id && !review.response && (
+                    <button 
+                      onClick={() => setRespondingToReview(review)}
+                      className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
+                    >
+                      <span>💬</span>
+                      <span>Respond to Review</span>
+                    </button>
+                  )}
+                </div>
+                
+                {/* Category ratings display */}
+                {review.categories && (
+                  <div className="flex items-center space-x-2 text-xs text-gray-500">
+                    <span>Communication: {review.categories.communication}★</span>
+                    <span>Expertise: {review.categories.expertise}★</span>
+                    <span>Punctuality: {review.categories.punctuality}★</span>
+                  </div>
+                )}
+              </div>
             </div>
           ))
         ) : (
@@ -377,33 +580,53 @@ const Reviews: React.FC = () => {
         )}
       </div>
 
-      {/* Add Review Modal (Placeholder) */}
-      {showAddReview && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-96 overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Write a Review</h2>
-            <p className="text-gray-600 mb-6">
-              This is a placeholder for the review form. In a full implementation, 
-              this would include fields for selecting a doctor, rating stars, 
-              and a comment text area.
-            </p>
-            <div className="flex space-x-3">
-              <button
-                onClick={handleAddReview}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Submit Review
-              </button>
-              <button
-                onClick={() => setShowAddReview(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Add Review Modal */}
+      <AnimatedModal
+        isOpen={showAddReview}
+        onClose={() => setShowAddReview(false)}
+        title=""
+        size="lg"
+      >
+        <ReviewForm
+          onSubmit={handleAddReview}
+          onCancel={() => setShowAddReview(false)}
+          isLoading={isSubmittingReview}
+        />
+      </AnimatedModal>
+
+      {/* Edit Review Modal */}
+      <AnimatedModal
+        isOpen={!!editingReview}
+        onClose={() => setEditingReview(null)}
+        title=""
+        size="lg"
+      >
+        {editingReview && (
+          <EditReviewForm
+            review={editingReview}
+            onSubmit={handleEditReview}
+            onCancel={() => setEditingReview(null)}
+            isLoading={isUpdatingReview}
+          />
+        )}
+      </AnimatedModal>
+
+      {/* Review Response Modal */}
+      <AnimatedModal
+        isOpen={!!respondingToReview}
+        onClose={() => setRespondingToReview(null)}
+        title=""
+        size="md"
+      >
+        {respondingToReview && (
+          <ReviewResponseForm
+            review={respondingToReview}
+            onSubmit={handleRespondToReview}
+            onCancel={() => setRespondingToReview(null)}
+            isLoading={isUpdatingReview}
+          />
+        )}
+      </AnimatedModal>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { Notification } from '../types';
 import NotificationContainer from '../components/NotificationContainer';
 
@@ -22,7 +22,7 @@ export const useNotifications = () => {
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const addNotification = (notification: Omit<Notification, 'id' | 'read' | 'createdAt'>) => {
+  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'read' | 'createdAt'>) => {
     const newNotification: Notification = {
       ...notification,
       id: Date.now().toString(),
@@ -30,19 +30,19 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       createdAt: new Date().toISOString(),
     };
     setNotifications(prev => [newNotification, ...prev]);
-  };
+  }, []);
 
-  const removeNotification = (id: string) => {
+  const removeNotification = useCallback((id: string) => {
     setNotifications(prev => prev.filter(notification => notification.id !== id));
-  };
+  }, []);
 
-  const markAsRead = (id: string) => {
+  const markAsRead = useCallback((id: string) => {
     setNotifications(prev =>
       prev.map(notification =>
         notification.id === id ? { ...notification, read: true } : notification
       )
     );
-  };
+  }, []);
 
   return (
     <NotificationContext.Provider value={{

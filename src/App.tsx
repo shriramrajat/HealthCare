@@ -11,6 +11,7 @@ import Symptoms from './pages/Symptoms';
 import Teleconsultation from './pages/Teleconsultation';
 import Education from './pages/Education';
 import Reviews from './pages/Reviews';
+import Welcome from './pages/Welcome';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 // Test Firebase connection in development
@@ -33,8 +34,8 @@ function AppContent() {
     <NotificationProvider>
       <Router>
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-          <Header />
-          <main className="container mx-auto px-4 py-6">
+          {user && <Header />}
+          <main className={user ? "container mx-auto px-4 py-6" : ""}>
             <Routes>
               <Route 
                 path="/login" 
@@ -76,28 +77,18 @@ function AppContent() {
                 path="/reviews" 
                 element={user ? <Reviews /> : <Navigate to="/login" />} 
               />
+
               <Route 
                 path="/" 
                 element={
                   user ? (
                     <Navigate to={user.role === 'patient' ? '/dashboard' : '/doctor-dashboard'} />
                   ) : (
-                    <Navigate to="/login" />
+                    <Welcome />
                   )
                 } 
               />
-              {/* Debug route - remove in production */}
-              <Route 
-                path="/debug" 
-                element={
-                  <div className="p-4 bg-yellow-100 border border-yellow-300 rounded">
-                    <h2 className="text-lg font-bold mb-2">Debug Info</h2>
-                    <p>User: {JSON.stringify(user)}</p>
-                    <p>Loading: {loading.toString()}</p>
-                    <p>Current path: {window.location.pathname}</p>
-                  </div>
-                } 
-              />
+
             </Routes>
           </main>
         </div>

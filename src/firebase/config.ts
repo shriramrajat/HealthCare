@@ -4,7 +4,6 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // Firebase configuration
-// Using environment variables for better security
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCphOBZ4zfZLqGWg33YTgk3bVofi1vKqlU",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "optimal-timer-466116-u0.firebaseapp.com",

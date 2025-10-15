@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Medication } from '../types';
 import { firestoreService } from '../firebase/firestore';
+import MedicationForm from '../components/forms/MedicationForm';
+import AnimatedModal from '../components/ui/AnimatedModal';
 import { 
   Pill, 
   Plus, 
@@ -21,14 +23,15 @@ const Medications: React.FC = () => {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedMedication, setSelectedMedication] = useState<Medication | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
     const loadMedications = async () => {
       if (!user?.id) return;
 
       try {
-        setLoading(true);
+        setIsLoading(true);
         const medicationsData = await firestoreService.getMedications(user.id);
         setMedications(medicationsData);
       } catch (error) {
@@ -39,7 +42,7 @@ const Medications: React.FC = () => {
           type: 'error'
         });
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
@@ -127,6 +130,85 @@ const Medications: React.FC = () => {
         type: 'error'
       });
     }
+  };
+
+  const handleAddMedication = async (formData: any) => {
+    if (!user?.id) return;
+
+    try {
+      setFormLoading(true);
+      
+      const medicationData = {
+        ...formData,
+        userId: user.id,
+        adherence: [] as boolean[]
+      };
+
+      const medicationId = await firestoreService.addMedication(medicationData);
+      
+      const newMedication: Medication = {
+        id: medicationId,
+        ...medicationData
+      };
+
+      setMedications(prev => [newMedication, ...prev]);
+      setShowAddForm(false);
+      
+      addNotification({
+        title: 'Medication Added',
+        message: `${formData.name} has been added to your medication list.`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error adding medication:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to add medication. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleUpdateMedication = async (formData: any) => {
+    if (!selectedMedication) return;
+
+    try {
+      setFormLoading(true);
+      
+      await firestoreService.updateMedication(selectedMedication.id, formData);
+      
+      setMedications(prev => 
+        prev.map(med => 
+          med.id === selectedMedication.id 
+            ? { ...med, ...formData }
+            : med
+        )
+      );
+      
+      setSelectedMedication(null);
+      
+      addNotification({
+        title: 'Medication Updated',
+        message: `${formData.name} has been updated successfully.`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating medication:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update medication. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleFormCancel = () => {
+    setShowAddForm(false);
+    setSelectedMedication(null);
   };
 
   const upcomingMeds = getUpcomingMedications();
@@ -357,46 +439,21 @@ const Medications: React.FC = () => {
         </div>
       )}
 
-      {/* Add/Edit Medication Form Modal (Placeholder) */}
-      {(showAddForm || selectedMedication) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-96 overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              {selectedMedication ? 'Edit Medication' : 'Add New Medication'}
-            </h2>
-            <p className="text-gray-600 mb-6">
-              This is a placeholder for the medication form. In a full implementation, 
-              this would include fields for medication name, dosage, frequency, reminders, 
-              and notes.
-            </p>
-            <div className="flex space-x-3">
-              <button
-                onClick={() => {
-                  setShowAddForm(false);
-                  setSelectedMedication(null);
-                  addNotification({
-                    title: selectedMedication ? 'Medication Updated' : 'Medication Added',
-                    message: `Your medication has been ${selectedMedication ? 'updated' : 'added'} successfully.`,
-                    type: 'success'
-                  });
-                }}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                {selectedMedication ? 'Update' : 'Add'} Medication
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddForm(false);
-                  setSelectedMedication(null);
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Add/Edit Medication Form Modal */}
+      <AnimatedModal
+        isOpen={showAddForm || selectedMedication !== null}
+        onClose={handleFormCancel}
+        title={selectedMedication ? 'Edit Medication' : 'Add New Medication'}
+        size="lg"
+      >
+        <MedicationForm
+          medication={selectedMedication || undefined}
+          onSubmit={selectedMedication ? handleUpdateMedication : handleAddMedication}
+          onCancel={handleFormCancel}
+          isLoading={formLoading}
+          existingMedications={medications}
+        />
+      </AnimatedModal>
     </div>
   );
 };

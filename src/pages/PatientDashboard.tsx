@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import HealthMetricCard from '../components/HealthMetricCard';
+import AnimatedModal from '../components/ui/AnimatedModal';
+import { HealthReadingForm, HealthReadingFormData } from '../components/forms/HealthReadingForm';
+import TrendAnalysis from '../components/analytics/TrendAnalysis';
+import HealthGoals from '../components/goals/HealthGoals';
+import HealthScore from '../components/analytics/HealthScore';
 import { HealthMetric, Medication, Appointment } from '../types';
 import { firestoreService } from '../firebase/firestore';
 import { 
@@ -12,7 +17,9 @@ import {
   Activity, 
   Heart,
   AlertCircle,
-  Clock
+  Clock,
+  Target,
+  BarChart3
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -22,6 +29,9 @@ const PatientDashboard: React.FC = () => {
   const [healthMetrics, setHealthMetrics] = useState<HealthMetric[]>([]);
   const [recentMedications, setRecentMedications] = useState<Medication[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [showHealthReadingForm, setShowHealthReadingForm] = useState(false);
+  const [isSubmittingReading, setIsSubmittingReading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'trends' | 'goals' | 'score'>('overview');
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -76,6 +86,51 @@ const PatientDashboard: React.FC = () => {
 
   const adherenceRate = calculateAdherenceRate(recentMedications);
 
+  const handleAddHealthReading = async (data: HealthReadingFormData) => {
+    if (!user?.id) return;
+
+    setIsSubmittingReading(true);
+    try {
+      // Create health metric from form data
+      const healthMetric: Omit<HealthMetric, 'id'> = {
+        type: data.type as any,
+        value: data.value,
+        unit: data.unit,
+        recordedAt: data.timestamp,
+        notes: data.notes,
+        userId: user.id
+      };
+
+      // Add to firestore
+      const newMetricId = await firestoreService.addHealthMetric(healthMetric);
+
+      // Update local state immediately
+      const newMetric: HealthMetric = {
+        id: newMetricId,
+        ...healthMetric
+      };
+
+      setHealthMetrics(prev => [newMetric, ...prev.slice(0, 3)]); // Keep only latest 4
+
+      // Close form and show success notification
+      setShowHealthReadingForm(false);
+      addNotification({
+        title: 'Health Reading Added',
+        message: `Your ${data.type.replace('_', ' ')} reading has been recorded successfully.`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error adding health reading:', error);
+      addNotification({
+        title: 'Error Adding Reading',
+        message: 'Failed to save your health reading. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsSubmittingReading(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Welcome Section */}
@@ -118,29 +173,65 @@ const PatientDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Health Metrics */}
-      <div>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Health Metrics</h2>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            <Plus className="h-4 w-4" />
-            <span>Add Reading</span>
-          </button>
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-6">
+            {[
+              { id: 'overview', label: 'Overview', icon: Activity },
+              { id: 'trends', label: 'Trends & Insights', icon: TrendingUp },
+              { id: 'goals', label: 'Health Goals', icon: Target },
+              { id: 'score', label: 'Health Score', icon: BarChart3 }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {healthMetrics.map((metric, index) => (
-            <HealthMetricCard 
-              key={metric.id} 
-              metric={metric} 
-              trend={index % 3 === 0 ? 'up' : index % 3 === 1 ? 'down' : 'stable'}
-            />
-          ))}
-        </div>
-      </div>
 
-      {/* Quick Actions & Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="p-6">
+          {activeTab === 'overview' && (
+            <div className="space-y-8">
+
+              {/* Health Metrics */}
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Health Metrics</h2>
+                  <button 
+                    onClick={() => setShowHealthReadingForm(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Add Reading</span>
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {healthMetrics.map((metric, index) => (
+                    <HealthMetricCard 
+                      key={metric.id} 
+                      metric={metric} 
+                      trend={index % 3 === 0 ? 'up' : index % 3 === 1 ? 'down' : 'stable'}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Actions & Alerts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Medication Reminders */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
@@ -231,11 +322,11 @@ const PatientDashboard: React.FC = () => {
               </Link>
             </div>
           )}
-        </div>
-      </div>
+                </div>
+              </div>
 
-      {/* Health Insights */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              {/* Health Insights */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Health Insights</h3>
         
         <div className="space-y-4">
@@ -258,11 +349,11 @@ const PatientDashboard: React.FC = () => {
               </p>
             </div>
           </div>
-        </div>
-      </div>
+                </div>
+              </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Quick Actions */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Link
           to="/symptoms"
           className="flex flex-col items-center justify-center p-6 bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow group"
@@ -290,8 +381,37 @@ const PatientDashboard: React.FC = () => {
         <button className="flex flex-col items-center justify-center p-6 bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow group">
           <Heart className="h-8 w-8 text-red-600 group-hover:text-red-700 mb-2" />
           <span className="text-sm font-medium text-gray-900">Emergency</span>
-        </button>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'trends' && (
+            <TrendAnalysis />
+          )}
+
+          {activeTab === 'goals' && (
+            <HealthGoals />
+          )}
+
+          {activeTab === 'score' && (
+            <HealthScore />
+          )}
+        </div>
       </div>
+
+      {/* Health Reading Form Modal */}
+      <AnimatedModal
+        isOpen={showHealthReadingForm}
+        onClose={() => setShowHealthReadingForm(false)}
+        title="Add Health Reading"
+      >
+        <HealthReadingForm
+          onSubmit={handleAddHealthReading}
+          onCancel={() => setShowHealthReadingForm(false)}
+          isLoading={isSubmittingReading}
+        />
+      </AnimatedModal>
     </div>
   );
 };

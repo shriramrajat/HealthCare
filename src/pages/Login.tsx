@@ -95,15 +95,6 @@ const Login: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8">
-          {/* Demo Credentials */}
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 className="text-sm font-medium text-blue-900 mb-2">Demo Credentials:</h3>
-            <div className="text-sm text-blue-700 space-y-1">
-              <p><strong>Patient:</strong> patient@demo.com / password123</p>
-              <p><strong>Doctor:</strong> doctor@demo.com / password123</p>
-            </div>
-          </div>
-
           <form className="space-y-6" onSubmit={handleSubmit}>
             {errors.general && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">

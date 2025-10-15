@@ -285,6 +285,46 @@ export const firestoreService = {
     }
   },
 
+  async updateReview(id: string, updates: Partial<Review>): Promise<void> {
+    try {
+      const reviewRef = doc(db, COLLECTIONS.REVIEWS, id);
+      const updateData: any = { ...updates };
+      
+      if (updates.date) {
+        updateData.date = Timestamp.fromDate(new Date(updates.date));
+      }
+      if (updates.editedAt) {
+        updateData.editedAt = Timestamp.fromDate(new Date(updates.editedAt));
+      }
+      if (updates.response?.date) {
+        updateData.response = {
+          ...updates.response,
+          date: Timestamp.fromDate(new Date(updates.response.date))
+        };
+      }
+      
+      await updateDoc(reviewRef, updateData);
+    } catch (error) {
+      console.error('Error updating review:', error);
+      throw error;
+    }
+  },
+
+  async addReviewResponse(reviewId: string, response: { message: string; doctorName: string }): Promise<void> {
+    try {
+      const reviewRef = doc(db, COLLECTIONS.REVIEWS, reviewId);
+      await updateDoc(reviewRef, {
+        response: {
+          ...response,
+          date: serverTimestamp()
+        }
+      });
+    } catch (error) {
+      console.error('Error adding review response:', error);
+      throw error;
+    }
+  },
+
   // Educational Content
   async getEducationalContent(category?: string): Promise<EducationalContent[]> {
     try {
@@ -385,6 +425,67 @@ export const firestoreService = {
       })) as User[];
     } catch (error) {
       console.error('Error getting doctors:', error);
+      throw error;
+    }
+  },
+
+  // Consultation Records
+  async getConsultationRecords(userId: string, userRole: 'patient' | 'doctor') {
+    try {
+      const field = userRole === 'patient' ? 'patientId' : 'doctorId';
+      const q = query(
+        collection(db, 'consultationRecords'),
+        where(field, '==', userId),
+        orderBy('date', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map((doc: DocumentData) => ({
+        id: doc.id,
+        ...doc.data(),
+        date: doc.data().date?.toDate?.()?.toISOString() || doc.data().date
+      }));
+    } catch (error) {
+      console.error('Error getting consultation records:', error);
+      throw error;
+    }
+  },
+
+  async addConsultationRecord(record: any) {
+    try {
+      const docRef = await addDoc(collection(db, 'consultationRecords'), {
+        ...record,
+        date: Timestamp.fromDate(new Date(record.date))
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding consultation record:', error);
+      throw error;
+    }
+  },
+
+  // Teleconsultation Settings
+  async getTeleconsultationSettings(userId: string) {
+    try {
+      const settingsDoc = await getDoc(doc(db, 'teleconsultationSettings', userId));
+      if (settingsDoc.exists()) {
+        return { id: settingsDoc.id, ...settingsDoc.data() };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting teleconsultation settings:', error);
+      throw error;
+    }
+  },
+
+  async saveTeleconsultationSettings(userId: string, settings: any) {
+    try {
+      const settingsRef = doc(db, 'teleconsultationSettings', userId);
+      await updateDoc(settingsRef, {
+        ...settings,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error saving teleconsultation settings:', error);
       throw error;
     }
   }

@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Symptom } from '../types';
+import { firestoreService } from '../firebase/firestore';
+import SymptomForm from '../components/forms/SymptomForm';
+import SymptomCalendar from '../components/calendar/SymptomCalendar';
+import SymptomPatternAnalysis from '../components/analytics/SymptomPatternAnalysis';
+import AnimatedModal from '../components/ui/AnimatedModal';
 import { 
   Plus, 
   Calendar, 
@@ -13,60 +20,39 @@ import {
 
 const Symptoms: React.FC = () => {
   const { addNotification } = useNotifications();
+  const { user } = useAuth();
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [filteredSymptoms, setFilteredSymptoms] = useState<Symptom[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>('month');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // Mock data - Replace with actual API calls
-    const mockSymptoms: Symptom[] = [
-      {
-        id: '1',
-        name: 'Headache',
-        severity: 6,
-        date: new Date().toISOString().split('T')[0],
-        notes: 'Started after lunch, possibly related to stress',
-        triggers: ['Stress', 'Lack of sleep']
-      },
-      {
-        id: '2',
-        name: 'Fatigue',
-        severity: 4,
-        date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        notes: 'General tiredness throughout the day',
-        triggers: ['Poor sleep', 'High blood sugar']
-      },
-      {
-        id: '3',
-        name: 'Dizziness',
-        severity: 7,
-        date: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString().split('T')[0],
-        notes: 'Felt lightheaded when standing up quickly',
-        triggers: ['Low blood pressure', 'Dehydration']
-      },
-      {
-        id: '4',
-        name: 'Chest tightness',
-        severity: 8,
-        date: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString().split('T')[0],
-        notes: 'Brief episode during evening walk',
-        triggers: ['Exercise', 'Cold weather']
-      },
-      {
-        id: '5',
-        name: 'Nausea',
-        severity: 5,
-        date: new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString().split('T')[0],
-        notes: 'After taking morning medication on empty stomach',
-        triggers: ['Medication', 'Empty stomach']
+    const loadSymptoms = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setLoading(true);
+        const userSymptoms = await firestoreService.getSymptoms(user.id);
+        setSymptoms(userSymptoms);
+      } catch (error) {
+        console.error('Error loading symptoms:', error);
+        addNotification({
+          title: 'Error',
+          message: 'Failed to load symptoms. Please try again.',
+          type: 'error'
+        });
+      } finally {
+        setLoading(false);
       }
-    ];
+    };
 
-    setSymptoms(mockSymptoms);
-  }, []);
+    loadSymptoms();
+  }, [user?.id, addNotification]);
 
   useEffect(() => {
     let filtered = symptoms;
@@ -132,13 +118,54 @@ const Symptoms: React.FC = () => {
     };
   };
 
-  const handleAddSymptom = () => {
-    setShowAddForm(false);
-    addNotification({
-      title: 'Symptom Added',
-      message: 'Your symptom has been logged successfully.',
-      type: 'success'
-    });
+  const handleAddSymptom = async (formData: any) => {
+    if (!user?.id) return;
+    
+    try {
+      setSubmitting(true);
+      
+      const symptomData = {
+        ...formData,
+        userId: user.id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      const symptomId = await firestoreService.addSymptom(symptomData);
+      
+      // Add to local state for immediate UI update
+      const newSymptom = {
+        id: symptomId,
+        ...symptomData
+      };
+      
+      setSymptoms(prev => [newSymptom, ...prev]);
+      setShowAddForm(false);
+      
+      addNotification({
+        title: 'Symptom Added',
+        message: 'Your symptom has been logged successfully.',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error adding symptom:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to add symptom. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDateSelect = (date: string) => {
+    setSelectedDate(date);
+  };
+
+  const handleAddSymptomForDate = (date: string) => {
+    setSelectedDate(date);
+    setShowAddForm(true);
   };
 
   const stats = getSymptomStats();
@@ -240,95 +267,126 @@ const Symptoms: React.FC = () => {
         </div>
       </div>
 
-      {/* Symptom Calendar View */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Calendar View</h2>
-        <div className="grid grid-cols-7 gap-2">
-          {/* Calendar header */}
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="p-2 text-center text-sm font-medium text-gray-600">
-              {day}
-            </div>
-          ))}
-          
-          {/* Calendar days (simplified placeholder) */}
-          {Array.from({ length: 35 }, (_, i) => {
-            const date = new Date();
-            date.setDate(date.getDate() - (35 - i - date.getDay()));
-            const dateString = date.toISOString().split('T')[0];
-            const daySymptoms = symptoms.filter(s => s.date === dateString);
-            const hasSymptoms = daySymptoms.length > 0;
-            const isToday = dateString === new Date().toISOString().split('T')[0];
-            
-            return (
-              <div
-                key={i}
-                className={`p-2 text-center text-sm border rounded cursor-pointer transition-colors ${
-                  isToday 
-                    ? 'border-blue-500 bg-blue-50 text-blue-600'
-                    : hasSymptoms
-                      ? 'border-red-200 bg-red-50 text-red-600'
-                      : 'border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                <div>{date.getDate()}</div>
-                {hasSymptoms && (
-                  <div className="flex justify-center mt-1">
-                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* Enhanced Symptom Calendar */}
+      <SymptomCalendar
+        symptoms={symptoms}
+        selectedDate={selectedDate}
+        onDateSelect={handleDateSelect}
+        onAddSymptom={handleAddSymptomForDate}
+        view={calendarView}
+        onViewChange={setCalendarView}
+      />
 
-      {/* Symptoms List */}
+      {/* Pattern Analysis */}
+      <SymptomPatternAnalysis symptoms={symptoms} />
+
+      {/* Enhanced Symptoms List */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">Recent Symptoms</h2>
         
-        {filteredSymptoms.length > 0 ? (
-          filteredSymptoms.map((symptom) => (
-            <div key={symptom.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{symptom.name}</h3>
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getSeverityColor(symptom.severity)}`}>
-                      {getSeverityIcon(symptom.severity)} {symptom.severity}/10
-                    </div>
+        {loading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+              >
+                <div className="animate-pulse">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="h-6 bg-gray-200 rounded w-32"></div>
+                    <div className="h-6 bg-gray-200 rounded-full w-16"></div>
                   </div>
-                  
-                  <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>{new Date(symptom.date).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  
-                  {symptom.notes && (
-                    <p className="text-gray-700 mb-3">{symptom.notes}</p>
-                  )}
-                  
-                  {symptom.triggers && symptom.triggers.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      <span className="text-sm text-gray-600">Triggers:</span>
-                      {symptom.triggers.map((trigger, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                        >
-                          {trigger}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
                 </div>
-              </div>
-            </div>
-          ))
+              </motion.div>
+            ))}
+          </div>
+        ) : filteredSymptoms.length > 0 ? (
+          <motion.div
+            className="space-y-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <AnimatePresence>
+              {filteredSymptoms.map((symptom, index) => (
+                <motion.div
+                  key={symptom.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ delay: index * 0.1, duration: 0.3 }}
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">{symptom.name}</h3>
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getSeverityColor(symptom.severity)}`}>
+                          {getSeverityIcon(symptom.severity)} {symptom.severity}/10
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>{new Date(symptom.date).toLocaleDateString()}</span>
+                        </div>
+                        {symptom.time && (
+                          <div className="flex items-center space-x-1">
+                            <span>at {symptom.time}</span>
+                          </div>
+                        )}
+                        {symptom.duration && (
+                          <div className="flex items-center space-x-1">
+                            <span>({symptom.duration} min)</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {symptom.location && (
+                        <p className="text-sm text-gray-600 mb-2">
+                          <strong>Location:</strong> {symptom.location}
+                        </p>
+                      )}
+                      
+                      {symptom.notes && (
+                        <p className="text-gray-700 mb-3">{symptom.notes}</p>
+                      )}
+                      
+                      {symptom.triggers && symptom.triggers.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          <span className="text-sm text-gray-600">Triggers:</span>
+                          {symptom.triggers.map((trigger, triggerIndex) => (
+                            <motion.span
+                              key={triggerIndex}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: triggerIndex * 0.05 }}
+                              className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
+                            >
+                              {trigger}
+                            </motion.span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center"
+          >
             <Activity className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               {searchTerm || severityFilter !== 'all' 
@@ -343,44 +401,37 @@ const Symptoms: React.FC = () => {
               }
             </p>
             {!searchTerm && severityFilter === 'all' && (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setShowAddForm(true)}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Log Your First Symptom
-              </button>
+              </motion.button>
             )}
-          </div>
+          </motion.div>
         )}
       </div>
 
-      {/* Add Symptom Form Modal (Placeholder) */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-96 overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Log New Symptom</h2>
-            <p className="text-gray-600 mb-6">
-              This is a placeholder for the symptom logging form. In a full implementation, 
-              this would include fields for symptom name, severity scale, date/time, 
-              notes, and potential triggers.
-            </p>
-            <div className="flex space-x-3">
-              <button
-                onClick={handleAddSymptom}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Log Symptom
-              </button>
-              <button
-                onClick={() => setShowAddForm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Enhanced Symptom Form Modal */}
+      <AnimatePresence>
+        {showAddForm && (
+          <AnimatedModal
+            isOpen={showAddForm}
+            onClose={() => setShowAddForm(false)}
+            title="Log New Symptom"
+            size="xl"
+          >
+            <SymptomForm
+              onSubmit={handleAddSymptom}
+              onCancel={() => setShowAddForm(false)}
+              selectedDate={selectedDate}
+              isLoading={submitting}
+            />
+          </AnimatedModal>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

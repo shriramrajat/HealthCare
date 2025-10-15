@@ -23,7 +23,8 @@ export interface AuthContextType {
 
 export interface HealthMetric {
   id: string;
-  type: 'blood_sugar' | 'blood_pressure' | 'weight' | 'heart_rate' | 'steps' | 'sleep';
+  userId?: string;
+  type: 'blood_sugar' | 'blood_pressure' | 'weight' | 'heart_rate' | 'steps' | 'sleep' | 'temperature';
   value: string;
   unit: string;
   recordedAt: string;
@@ -32,6 +33,7 @@ export interface HealthMetric {
 
 export interface Medication {
   id: string;
+  userId: string;
   name: string;
   dosage: string;
   frequency: string;
@@ -44,11 +46,18 @@ export interface Medication {
 
 export interface Symptom {
   id: string;
+  userId?: string;
   name: string;
   severity: number; // 1-10 scale
   date: string;
+  time?: string;
   notes?: string;
   triggers?: string[];
+  duration?: number; // in minutes
+  location?: string;
+  photos?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Appointment {
@@ -73,6 +82,20 @@ export interface Review {
   rating: number;
   comment: string;
   date: string;
+  categories?: {
+    communication: number;
+    expertise: number;
+    punctuality: number;
+    overall: number;
+  };
+  anonymous?: boolean;
+  response?: {
+    message: string;
+    date: string;
+    doctorName: string;
+  };
+  edited?: boolean;
+  editedAt?: string;
 }
 
 export interface Notification {
@@ -92,4 +115,39 @@ export interface EducationalContent {
   readTime: string;
   author: string;
   publishedAt: string;
+}
+
+export interface ConsultationRecord {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  patientName: string;
+  doctorName: string;
+  date: string;
+  duration: number; // in minutes
+  type: 'teleconsultation' | 'in-person';
+  status: 'completed' | 'cancelled' | 'no-show';
+  notes: string;
+  prescription?: string;
+  followUpRequired: boolean;
+  recordingUrl?: string;
+  diagnosis?: string;
+  symptoms?: string[];
+  vitalSigns?: {
+    bloodPressure?: string;
+    heartRate?: number;
+    temperature?: number;
+    weight?: number;
+  };
+}
+
+export interface TeleconsultationSettings {
+  userId: string;
+  videoQuality: 'low' | 'medium' | 'high';
+  audioEnabled: boolean;
+  videoEnabled: boolean;
+  notifications: boolean;
+  autoRecord: boolean;
+  preferredLanguage: string;
+  timezone: string;
 }

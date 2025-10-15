@@ -1,0 +1,32 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Users can upload and access their own files
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Medical documents - users can upload their own
+    match /medical-documents/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Doctors can read patient documents if they have an appointment
+      allow read: if request.auth != null && 
+        exists(/databases/(default)/documents/appointments/$(request.auth.uid)) &&
+        get(/databases/(default)/documents/appointments/$(request.auth.uid)).data.doctorId == request.auth.uid;
+    }
+    
+    // Profile pictures
+    match /avatars/{userId} {
+      allow read: if true; // Public read for avatars
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Educational content images - doctors can upload
+    match /educational-content/{allPaths=**} {
+      allow read: if true; // Public read
+      allow write: if request.auth != null && 
+        exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'doctor';
+    }
+  }
+}
