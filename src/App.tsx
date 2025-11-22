@@ -12,6 +12,7 @@ import Teleconsultation from './pages/Teleconsultation';
 import Education from './pages/Education';
 import Reviews from './pages/Reviews';
 import Welcome from './pages/Welcome';
+import DiagnosticTest from './pages/DiagnosticTest';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 // Test Firebase connection in development
@@ -76,6 +77,10 @@ function AppContent() {
               <Route 
                 path="/reviews" 
                 element={user ? <Reviews /> : <Navigate to="/login" />} 
+              />
+              <Route 
+                path="/diagnostic" 
+                element={user ? <DiagnosticTest /> : <Navigate to="/login" />} 
               />
 
               <Route 
