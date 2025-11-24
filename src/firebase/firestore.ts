@@ -9,6 +9,8 @@ import {
   where,
   orderBy,
   limit,
+  startAfter,
+  QueryDocumentSnapshot,
   Timestamp,
   addDoc,
   serverTimestamp,
@@ -26,6 +28,18 @@ import {
   User
 } from '../types';
 
+// Pagination interface
+export interface PaginationOptions {
+  limit?: number;
+  lastDoc?: QueryDocumentSnapshot;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  lastDoc: QueryDocumentSnapshot | null;
+  hasMore: boolean;
+}
+
 // Collection names
 const COLLECTIONS = {
   USERS: 'users',
@@ -40,19 +54,40 @@ const COLLECTIONS = {
 
 export const firestoreService = {
   // Health Metrics
-  async getHealthMetrics(userId: string): Promise<HealthMetric[]> {
+  async getHealthMetrics(userId: string, options?: PaginationOptions): Promise<PaginatedResult<HealthMetric>> {
     try {
-      const q = query(
+      const pageLimit = options?.limit || 50;
+      let q = query(
         collection(db, COLLECTIONS.HEALTH_METRICS),
         where('userId', '==', userId),
-        orderBy('recordedAt', 'desc')
+        orderBy('recordedAt', 'desc'),
+        limit(pageLimit + 1) // Fetch one extra to check if there are more
       );
+
+      if (options?.lastDoc) {
+        q = query(
+          collection(db, COLLECTIONS.HEALTH_METRICS),
+          where('userId', '==', userId),
+          orderBy('recordedAt', 'desc'),
+          startAfter(options.lastDoc),
+          limit(pageLimit + 1)
+        );
+      }
+
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc: DocumentData) => ({
+      const docs = querySnapshot.docs;
+      const hasMore = docs.length > pageLimit;
+      const data = docs.slice(0, pageLimit).map((doc: DocumentData) => ({
         id: doc.id,
         ...doc.data(),
         recordedAt: doc.data().recordedAt?.toDate?.()?.toISOString() || doc.data().recordedAt
       })) as HealthMetric[];
+
+      return {
+        data,
+        lastDoc: docs.length > 0 ? docs[Math.min(pageLimit - 1, docs.length - 1)] : null,
+        hasMore
+      };
     } catch (error) {
       console.error('Error getting health metrics:', error);
       throw error;
@@ -98,20 +133,41 @@ export const firestoreService = {
   },
 
   // Medications
-  async getMedications(userId: string): Promise<Medication[]> {
+  async getMedications(userId: string, options?: PaginationOptions): Promise<PaginatedResult<Medication>> {
     try {
-      const q = query(
+      const pageLimit = options?.limit || 50;
+      let q = query(
         collection(db, COLLECTIONS.MEDICATIONS),
         where('userId', '==', userId),
-        orderBy('startDate', 'desc')
+        orderBy('startDate', 'desc'),
+        limit(pageLimit + 1)
       );
+
+      if (options?.lastDoc) {
+        q = query(
+          collection(db, COLLECTIONS.MEDICATIONS),
+          where('userId', '==', userId),
+          orderBy('startDate', 'desc'),
+          startAfter(options.lastDoc),
+          limit(pageLimit + 1)
+        );
+      }
+
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc: DocumentData) => ({
+      const docs = querySnapshot.docs;
+      const hasMore = docs.length > pageLimit;
+      const data = docs.slice(0, pageLimit).map((doc: DocumentData) => ({
         id: doc.id,
         ...doc.data(),
         startDate: doc.data().startDate?.toDate?.()?.toISOString() || doc.data().startDate,
         endDate: doc.data().endDate?.toDate?.()?.toISOString() || doc.data().endDate
       })) as Medication[];
+
+      return {
+        data,
+        lastDoc: docs.length > 0 ? docs[Math.min(pageLimit - 1, docs.length - 1)] : null,
+        hasMore
+      };
     } catch (error) {
       console.error('Error getting medications:', error);
       throw error;
@@ -161,19 +217,40 @@ export const firestoreService = {
   },
 
   // Symptoms
-  async getSymptoms(userId: string): Promise<Symptom[]> {
+  async getSymptoms(userId: string, options?: PaginationOptions): Promise<PaginatedResult<Symptom>> {
     try {
-      const q = query(
+      const pageLimit = options?.limit || 50;
+      let q = query(
         collection(db, COLLECTIONS.SYMPTOMS),
         where('userId', '==', userId),
-        orderBy('date', 'desc')
+        orderBy('date', 'desc'),
+        limit(pageLimit + 1)
       );
+
+      if (options?.lastDoc) {
+        q = query(
+          collection(db, COLLECTIONS.SYMPTOMS),
+          where('userId', '==', userId),
+          orderBy('date', 'desc'),
+          startAfter(options.lastDoc),
+          limit(pageLimit + 1)
+        );
+      }
+
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc: DocumentData) => ({
+      const docs = querySnapshot.docs;
+      const hasMore = docs.length > pageLimit;
+      const data = docs.slice(0, pageLimit).map((doc: DocumentData) => ({
         id: doc.id,
         ...doc.data(),
         date: doc.data().date?.toDate?.()?.toISOString() || doc.data().date
       })) as Symptom[];
+
+      return {
+        data,
+        lastDoc: docs.length > 0 ? docs[Math.min(pageLimit - 1, docs.length - 1)] : null,
+        hasMore
+      };
     } catch (error) {
       console.error('Error getting symptoms:', error);
       throw error;

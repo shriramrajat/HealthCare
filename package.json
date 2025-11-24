@@ -12,7 +12,16 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "emulators": "firebase emulators:start --only firestore,auth",
+    "test:rules": "node test-firestore-rules.js",
+    "deploy:indexes": "firebase deploy --only firestore:indexes",
+    "deploy:rules": "firebase deploy --only firestore:rules",
+    "deploy:storage": "firebase deploy --only storage",
+    "deploy:firestore": "firebase deploy --only firestore:indexes,firestore:rules",
+    "deploy:vercel": "vercel --prod",
+    "deploy:vercel:preview": "vercel",
+    "verify:deployment": "node verify-deployment.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

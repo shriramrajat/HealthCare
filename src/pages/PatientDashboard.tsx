@@ -39,12 +39,12 @@ const PatientDashboard: React.FC = () => {
 
       try {
         // Load health metrics
-        const metrics = await firestoreService.getHealthMetrics(user.id);
-        setHealthMetrics(metrics.slice(0, 4)); // Show latest 4
+        const metricsResult = await firestoreService.getHealthMetrics(user.id, { limit: 4 });
+        setHealthMetrics(metricsResult.data);
 
         // Load medications
-        const medications = await firestoreService.getMedications(user.id);
-        setRecentMedications(medications.slice(0, 2)); // Show latest 2
+        const medicationsResult = await firestoreService.getMedications(user.id, { limit: 2 });
+        setRecentMedications(medicationsResult.data);
 
         // Load appointments
         const appointments = await firestoreService.getAppointments(user.id, 'patient');

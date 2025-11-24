@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useRoutePreload } from '../hooks/useRoutePreload';
 import { 
   Heart, 
   Bell, 
@@ -24,6 +25,7 @@ const Header: React.FC = () => {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const { handleMouseEnter, handleFocus } = useRoutePreload();
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -91,6 +93,8 @@ const Header: React.FC = () => {
                   key={item.path}
                   to={item.path}
                   onClick={() => handleNavClick(item.path)}
+                  onMouseEnter={handleMouseEnter(item.path)}
+                  onFocus={handleFocus(item.path)}
                   className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     location.pathname === item.path
                       ? 'text-blue-600 bg-blue-50'
@@ -160,6 +164,8 @@ const Header: React.FC = () => {
                     key={item.path}
                     to={item.path}
                     onClick={() => handleNavClick(item.path)}
+                    onMouseEnter={handleMouseEnter(item.path)}
+                    onFocus={handleFocus(item.path)}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       location.pathname === item.path
                         ? 'text-blue-600 bg-blue-50'

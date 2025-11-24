@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useOfflineForm } from '../hooks/useOfflineForm';
+import { getFirebaseErrorMessage } from '../utils/errorHandling';
 import { Symptom } from '../types';
-import { firestoreService } from '../firebase/firestore';
+import firestoreService from '../firebase/firestoreWithPerformance';
 import SymptomForm from '../components/forms/SymptomForm';
 import SymptomCalendar from '../components/calendar/SymptomCalendar';
 import SymptomPatternAnalysis from '../components/analytics/SymptomPatternAnalysis';
@@ -15,7 +17,8 @@ import {
   Activity, 
   AlertTriangle,
   Search,
-  Filter
+  Filter,
+  RefreshCw
 } from 'lucide-react';
 
 const Symptoms: React.FC = () => {
@@ -29,7 +32,9 @@ const Symptoms: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>('month');
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [lastDoc, setLastDoc] = useState<any>(null);
 
   useEffect(() => {
     const loadSymptoms = async () => {
@@ -37,8 +42,10 @@ const Symptoms: React.FC = () => {
       
       try {
         setLoading(true);
-        const userSymptoms = await firestoreService.getSymptoms(user.id);
-        setSymptoms(userSymptoms);
+        const result = await firestoreService.getSymptoms(user.id, { limit: 50 });
+        setSymptoms(result.data);
+        setHasMore(result.hasMore);
+        setLastDoc(result.lastDoc);
       } catch (error) {
         console.error('Error loading symptoms:', error);
         addNotification({
@@ -53,6 +60,30 @@ const Symptoms: React.FC = () => {
 
     loadSymptoms();
   }, [user?.id, addNotification]);
+
+  const loadMoreSymptoms = async () => {
+    if (!user?.id || !lastDoc || !hasMore) return;
+
+    try {
+      setLoadingMore(true);
+      const result = await firestoreService.getSymptoms(user.id, { 
+        limit: 50, 
+        lastDoc 
+      });
+      setSymptoms(prev => [...prev, ...result.data]);
+      setHasMore(result.hasMore);
+      setLastDoc(result.lastDoc);
+    } catch (error) {
+      console.error('Error loading more symptoms:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to load more symptoms. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     let filtered = symptoms;
@@ -118,11 +149,9 @@ const Symptoms: React.FC = () => {
     };
   };
 
-  const handleAddSymptom = async (formData: any) => {
-    if (!user?.id) return;
-    
-    try {
-      setSubmitting(true);
+  const { submit: submitSymptom, isSubmitting, error: submissionError, retry, isOnline, queuedCount } = useOfflineForm({
+    onSubmit: async (formData: any) => {
+      if (!user?.id) throw new Error('User not authenticated');
       
       const symptomData = {
         ...formData,
@@ -142,21 +171,29 @@ const Symptoms: React.FC = () => {
       setSymptoms(prev => [newSymptom, ...prev]);
       setShowAddForm(false);
       
+      // Reload to get proper pagination state
+      if (user?.id) {
+        const result = await firestoreService.getSymptoms(user.id, { limit: 50 });
+        setSymptoms(result.data);
+        setHasMore(result.hasMore);
+        setLastDoc(result.lastDoc);
+      }
+      
       addNotification({
         title: 'Symptom Added',
         message: 'Your symptom has been logged successfully.',
         type: 'success'
       });
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error('Error adding symptom:', error);
-      addNotification({
-        title: 'Error',
-        message: 'Failed to add symptom. Please try again.',
-        type: 'error'
-      });
-    } finally {
-      setSubmitting(false);
-    }
+    },
+    submissionType: 'symptom',
+    userId: user?.id || ''
+  });
+
+  const handleAddSymptom = async (formData: any) => {
+    await submitSymptom(formData);
   };
 
   const handleDateSelect = (date: string) => {
@@ -412,6 +449,19 @@ const Symptoms: React.FC = () => {
             )}
           </motion.div>
         )}
+
+        {/* Load More Button */}
+        {hasMore && filteredSymptoms.length > 0 && (
+          <div className="flex justify-center mt-6">
+            <button
+              onClick={loadMoreSymptoms}
+              disabled={loadingMore}
+              className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingMore ? 'Loading...' : 'Load More Symptoms'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Enhanced Symptom Form Modal */}
@@ -423,11 +473,27 @@ const Symptoms: React.FC = () => {
             title="Log New Symptom"
             size="xl"
           >
+            {submissionError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-red-600 mb-2">
+                  {getFirebaseErrorMessage(submissionError)}
+                </p>
+                <button
+                  type="button"
+                  onClick={retry}
+                  disabled={isSubmitting}
+                  className="flex items-center space-x-2 text-sm text-red-700 hover:text-red-800 font-medium disabled:opacity-50"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Retry</span>
+                </button>
+              </div>
+            )}
             <SymptomForm
               onSubmit={handleAddSymptom}
               onCancel={() => setShowAddForm(false)}
               selectedDate={selectedDate}
-              isLoading={submitting}
+              isLoading={isSubmitting}
             />
           </AnimatedModal>
         )}

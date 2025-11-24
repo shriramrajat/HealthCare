@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
-import { Heart, Eye, EyeOff, Mail, Lock, User, Phone, Stethoscope } from 'lucide-react';
+import { useEnhancedForm } from '../hooks/useEnhancedForm';
+import { getFirebaseErrorMessage } from '../utils/errorHandling';
+import { Heart, Eye, EyeOff, Mail, Lock, User, Phone, Stethoscope, RefreshCw } from 'lucide-react';
 
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -17,12 +19,40 @@ const Register: React.FC = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   const { register } = useAuth();
   const { addNotification } = useNotifications();
   const navigate = useNavigate();
+
+  const { submit, isSubmitting, error: submissionError, retry } = useEnhancedForm({
+    onSubmit: async (data: typeof formData) => {
+      const userData = {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        role: data.role,
+        ...(data.role === 'doctor' ? {
+          specialization: data.specialization
+        } : {
+          conditions: data.conditions
+        })
+      };
+
+      const newUser = await register(data.email, data.password, userData);
+      
+      addNotification({
+        title: 'Registration Successful',
+        message: `Welcome to HealthCare+, ${newUser.name}!`,
+        type: 'success'
+      });
+
+      navigate(newUser.role === 'patient' ? '/dashboard' : '/doctor-dashboard');
+    },
+    onError: (error) => {
+      console.error('Registration error:', error);
+    }
+  });
 
   const commonConditions = [
     'Diabetes Type 1',
@@ -95,48 +125,7 @@ const Register: React.FC = () => {
     
     if (!validateForm()) return;
 
-    setLoading(true);
-    setErrors({});
-
-    try {
-      const userData = {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        role: formData.role,
-        ...(formData.role === 'doctor' ? {
-          specialization: formData.specialization
-        } : {
-          conditions: formData.conditions
-        })
-      };
-
-      const newUser = await register(formData.email, formData.password, userData);
-      
-      addNotification({
-        title: 'Registration Successful',
-        message: `Welcome to HealthCare+, ${newUser.name}!`,
-        type: 'success'
-      });
-
-      navigate(newUser.role === 'patient' ? '/dashboard' : '/doctor-dashboard');
-    } catch (error: any) {
-      console.error('Registration error:', error);
-      
-      // Handle different Firebase auth errors
-      let errorMessage = 'Registration failed. Please try again.';
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'An account with this email already exists.';
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = 'Password should be at least 6 characters.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address.';
-      }
-      
-      setErrors({ general: errorMessage });
-    } finally {
-      setLoading(false);
-    }
+    await submit(formData);
   };
 
   const handleConditionChange = (condition: string) => {
@@ -170,9 +159,18 @@ const Register: React.FC = () => {
 
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {errors.general && (
+            {submissionError && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-sm text-red-600">{errors.general}</p>
+                <p className="text-sm text-red-600 mb-2">{getFirebaseErrorMessage(submissionError)}</p>
+                <button
+                  type="button"
+                  onClick={retry}
+                  disabled={isSubmitting}
+                  className="flex items-center space-x-2 text-sm text-red-700 hover:text-red-800 font-medium disabled:opacity-50"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Retry</span>
+                </button>
               </div>
             )}
 
@@ -416,10 +414,10 @@ const Register: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isSubmitting}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? (
+              {isSubmitting ? (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>Creating account...</span>

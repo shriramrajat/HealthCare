@@ -1,3 +1,22 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Font optimization - use font-display: swap for better performance */
+@layer base {
+  /* System font stack as fallback */
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+  }
+  
+  /* If using custom fonts, apply font-display: swap */
+  @font-face {
+    font-family: 'CustomFont';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    /* src: url('/fonts/custom-font.woff2') format('woff2'); */
+  }
+}

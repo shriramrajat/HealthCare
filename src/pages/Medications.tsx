@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useOfflineForm } from '../hooks/useOfflineForm';
+import { getFirebaseErrorMessage } from '../utils/errorHandling';
 import { Medication } from '../types';
-import { firestoreService } from '../firebase/firestore';
+import firestoreService from '../firebase/firestoreWithPerformance';
 import MedicationForm from '../components/forms/MedicationForm';
 import AnimatedModal from '../components/ui/AnimatedModal';
 import { 
@@ -14,7 +16,8 @@ import {
   AlertCircle,
   CheckCircle,
   Edit3,
-  Trash2
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
 
 const Medications: React.FC = () => {
@@ -24,7 +27,9 @@ const Medications: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedMedication, setSelectedMedication] = useState<Medication | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [formLoading, setFormLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [lastDoc, setLastDoc] = useState<any>(null);
 
   useEffect(() => {
     const loadMedications = async () => {
@@ -32,8 +37,10 @@ const Medications: React.FC = () => {
 
       try {
         setIsLoading(true);
-        const medicationsData = await firestoreService.getMedications(user.id);
-        setMedications(medicationsData);
+        const result = await firestoreService.getMedications(user.id, { limit: 50 });
+        setMedications(result.data);
+        setHasMore(result.hasMore);
+        setLastDoc(result.lastDoc);
       } catch (error) {
         console.error('Error loading medications:', error);
         addNotification({
@@ -48,6 +55,30 @@ const Medications: React.FC = () => {
 
     loadMedications();
   }, [user, addNotification]);
+
+  const loadMoreMedications = async () => {
+    if (!user?.id || !lastDoc || !hasMore) return;
+
+    try {
+      setLoadingMore(true);
+      const result = await firestoreService.getMedications(user.id, { 
+        limit: 50, 
+        lastDoc 
+      });
+      setMedications(prev => [...prev, ...result.data]);
+      setHasMore(result.hasMore);
+      setLastDoc(result.lastDoc);
+    } catch (error) {
+      console.error('Error loading more medications:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to load more medications. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const calculateAdherenceRate = (adherence: boolean[]) => {
     if (adherence.length === 0) return 100;
@@ -132,11 +163,9 @@ const Medications: React.FC = () => {
     }
   };
 
-  const handleAddMedication = async (formData: any) => {
-    if (!user?.id) return;
-
-    try {
-      setFormLoading(true);
+  const { submit: submitAdd, isSubmitting: isAdding, error: addError, retry: retryAdd, isOnline, queuedCount } = useOfflineForm({
+    onSubmit: async (formData: any) => {
+      if (!user?.id) throw new Error('User not authenticated');
       
       const medicationData = {
         ...formData,
@@ -154,28 +183,30 @@ const Medications: React.FC = () => {
       setMedications(prev => [newMedication, ...prev]);
       setShowAddForm(false);
       
+      // Reload to get proper pagination state
+      if (user?.id) {
+        const result = await firestoreService.getMedications(user.id, { limit: 50 });
+        setMedications(result.data);
+        setHasMore(result.hasMore);
+        setLastDoc(result.lastDoc);
+      }
+      
       addNotification({
         title: 'Medication Added',
         message: `${formData.name} has been added to your medication list.`,
         type: 'success'
       });
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error('Error adding medication:', error);
-      addNotification({
-        title: 'Error',
-        message: 'Failed to add medication. Please try again.',
-        type: 'error'
-      });
-    } finally {
-      setFormLoading(false);
-    }
-  };
+    },
+    submissionType: 'medication',
+    userId: user?.id || ''
+  });
 
-  const handleUpdateMedication = async (formData: any) => {
-    if (!selectedMedication) return;
-
-    try {
-      setFormLoading(true);
+  const { submit: submitUpdate, isSubmitting: isUpdating, error: updateError, retry: retryUpdate } = useOfflineForm({
+    onSubmit: async (formData: any) => {
+      if (!selectedMedication) throw new Error('No medication selected');
       
       await firestoreService.updateMedication(selectedMedication.id, formData);
       
@@ -194,16 +225,20 @@ const Medications: React.FC = () => {
         message: `${formData.name} has been updated successfully.`,
         type: 'success'
       });
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error('Error updating medication:', error);
-      addNotification({
-        title: 'Error',
-        message: 'Failed to update medication. Please try again.',
-        type: 'error'
-      });
-    } finally {
-      setFormLoading(false);
-    }
+    },
+    submissionType: 'medication',
+    userId: user?.id || ''
+  });
+
+  const handleAddMedication = async (formData: any) => {
+    await submitAdd(formData);
+  };
+
+  const handleUpdateMedication = async (formData: any) => {
+    await submitUpdate(formData);
   };
 
   const handleFormCancel = () => {
@@ -422,8 +457,21 @@ const Medications: React.FC = () => {
         ))}
       </div>
 
+      {/* Load More Button */}
+      {hasMore && medications.length > 0 && (
+        <div className="flex justify-center">
+          <button
+            onClick={loadMoreMedications}
+            disabled={loadingMore}
+            className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingMore ? 'Loading...' : 'Load More Medications'}
+          </button>
+        </div>
+      )}
+
       {/* Empty State */}
-      {medications.length === 0 && (
+      {medications.length === 0 && !isLoading && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <Pill className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No medications added</h3>
@@ -446,11 +494,27 @@ const Medications: React.FC = () => {
         title={selectedMedication ? 'Edit Medication' : 'Add New Medication'}
         size="lg"
       >
+        {(addError || updateError) && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-red-600 mb-2">
+              {getFirebaseErrorMessage(addError || updateError)}
+            </p>
+            <button
+              type="button"
+              onClick={selectedMedication ? retryUpdate : retryAdd}
+              disabled={isAdding || isUpdating}
+              className="flex items-center space-x-2 text-sm text-red-700 hover:text-red-800 font-medium disabled:opacity-50"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Retry</span>
+            </button>
+          </div>
+        )}
         <MedicationForm
           medication={selectedMedication || undefined}
           onSubmit={selectedMedication ? handleUpdateMedication : handleAddMedication}
           onCancel={handleFormCancel}
-          isLoading={formLoading}
+          isLoading={isAdding || isUpdating}
           existingMedications={medications}
         />
       </AnimatedModal>

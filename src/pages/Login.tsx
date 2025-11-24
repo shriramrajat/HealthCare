@@ -2,18 +2,36 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
-import { Heart, Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { useEnhancedForm } from '../hooks/useEnhancedForm';
+import { getFirebaseErrorMessage } from '../utils/errorHandling';
+import { Heart, Eye, EyeOff, Mail, Lock, RefreshCw } from 'lucide-react';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{email?: string; password?: string; general?: string}>({});
+  const [errors, setErrors] = useState<{email?: string; password?: string}>({});
 
   const { login } = useAuth();
   const { addNotification } = useNotifications();
   const navigate = useNavigate();
+
+  const { submit, isSubmitting, error: submissionError, retry } = useEnhancedForm({
+    onSubmit: async (data: { email: string; password: string }) => {
+      const userData = await login(data.email, data.password);
+      
+      addNotification({
+        title: 'Login Successful',
+        message: `Welcome back, ${userData.name}!`,
+        type: 'success'
+      });
+
+      navigate(userData.role === 'patient' ? '/dashboard' : '/doctor-dashboard');
+    },
+    onError: (error) => {
+      console.error('Login error:', error);
+    }
+  });
 
   const validateForm = () => {
     const newErrors: {email?: string; password?: string} = {};
@@ -39,38 +57,7 @@ const Login: React.FC = () => {
     
     if (!validateForm()) return;
 
-    setLoading(true);
-    setErrors({});
-
-    try {
-      const userData = await login(email, password);
-      
-      addNotification({
-        title: 'Login Successful',
-        message: `Welcome back, ${userData.name}!`,
-        type: 'success'
-      });
-
-      navigate(userData.role === 'patient' ? '/dashboard' : '/doctor-dashboard');
-    } catch (error: any) {
-      console.error('Login error:', error);
-      
-      // Handle different Firebase auth errors
-      let errorMessage = 'Invalid email or password. Please try again.';
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email address.';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password. Please try again.';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many failed attempts. Please try again later.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address.';
-      }
-      
-      setErrors({ general: errorMessage });
-    } finally {
-      setLoading(false);
-    }
+    await submit({ email, password });
   };
 
   return (
@@ -96,9 +83,18 @@ const Login: React.FC = () => {
 
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {errors.general && (
+            {submissionError && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-sm text-red-600">{errors.general}</p>
+                <p className="text-sm text-red-600 mb-2">{getFirebaseErrorMessage(submissionError)}</p>
+                <button
+                  type="button"
+                  onClick={retry}
+                  disabled={isSubmitting}
+                  className="flex items-center space-x-2 text-sm text-red-700 hover:text-red-800 font-medium disabled:opacity-50"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Retry</span>
+                </button>
               </div>
             )}
 
@@ -182,10 +178,10 @@ const Login: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isSubmitting}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? (
+              {isSubmitting ? (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>Signing in...</span>

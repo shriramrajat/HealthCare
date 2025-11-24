@@ -1,20 +1,28 @@
-import React from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import PatientDashboard from './pages/PatientDashboard';
-import DoctorDashboard from './pages/DoctorDashboard';
-import Appointments from './pages/Appointments';
-import Medications from './pages/Medications';
-import Symptoms from './pages/Symptoms';
-import Teleconsultation from './pages/Teleconsultation';
-import Education from './pages/Education';
-import Reviews from './pages/Reviews';
 import Welcome from './pages/Welcome';
-import DiagnosticTest from './pages/DiagnosticTest';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { PageLoadingFallback } from './components/LoadingFallback';
+import ErrorBoundary from './components/ErrorBoundary';
+import OfflineIndicator from './components/ui/OfflineIndicator';
+import { offlineQueueService } from './services/offlineQueue';
+import firestoreService from './firebase/firestoreWithPerformance';
+import { usePerformanceMonitoring } from './hooks/usePerformanceMonitoring';
+
+// Lazy load route components
+const PatientDashboard = lazy(() => import('./pages/PatientDashboard'));
+const DoctorDashboard = lazy(() => import('./pages/DoctorDashboard'));
+const Appointments = lazy(() => import('./pages/Appointments'));
+const Medications = lazy(() => import('./pages/Medications'));
+const Symptoms = lazy(() => import('./pages/Symptoms'));
+const Teleconsultation = lazy(() => import('./pages/Teleconsultation'));
+const Education = lazy(() => import('./pages/Education'));
+const Reviews = lazy(() => import('./pages/Reviews'));
+const DiagnosticTest = lazy(() => import('./pages/DiagnosticTest'));
 // Test Firebase connection in development
 if (import.meta.env.DEV) {
   import('./firebase/test-connection');
@@ -22,6 +30,31 @@ if (import.meta.env.DEV) {
 
 function AppContent() {
   const { user, loading } = useAuth();
+
+  // Initialize performance monitoring
+  usePerformanceMonitoring();
+
+  // Set up offline queue processor
+  useEffect(() => {
+    offlineQueueService.setProcessor(async (submission) => {
+      switch (submission.type) {
+        case 'medication':
+          await firestoreService.addMedication(submission.data);
+          break;
+        case 'symptom':
+          await firestoreService.addSymptom(submission.data);
+          break;
+        case 'appointment':
+          await firestoreService.addAppointment(submission.data);
+          break;
+        case 'health-metric':
+          await firestoreService.addHealthMetric(submission.data);
+          break;
+        default:
+          throw new Error(`Unknown submission type: ${submission.type}`);
+      }
+    });
+  }, []);
 
   if (loading) {
     return (
@@ -36,6 +69,7 @@ function AppContent() {
       <Router>
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
           {user && <Header />}
+          {user && <OfflineIndicator />}
           <main className={user ? "container mx-auto px-4 py-6" : ""}>
             <Routes>
               <Route 
@@ -48,39 +82,129 @@ function AppContent() {
               />
               <Route 
                 path="/dashboard" 
-                element={user?.role === 'patient' ? <PatientDashboard /> : <Navigate to="/login" />} 
+                element={
+                  user?.role === 'patient' ? (
+                    <ErrorBoundary context={{ component: 'PatientDashboard', action: 'load' }}>
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <PatientDashboard />
+                      </Suspense>
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                } 
               />
               <Route 
                 path="/doctor-dashboard" 
-                element={user?.role === 'doctor' ? <DoctorDashboard /> : <Navigate to="/login" />} 
+                element={
+                  user?.role === 'doctor' ? (
+                    <ErrorBoundary context={{ component: 'DoctorDashboard', action: 'load' }}>
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <DoctorDashboard />
+                      </Suspense>
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                } 
               />
               <Route 
                 path="/appointments" 
-                element={user ? <Appointments /> : <Navigate to="/login" />} 
+                element={
+                  user ? (
+                    <ErrorBoundary context={{ component: 'Appointments', action: 'load' }}>
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <Appointments />
+                      </Suspense>
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                } 
               />
               <Route 
                 path="/medications" 
-                element={user?.role === 'patient' ? <Medications /> : <Navigate to="/login" />} 
+                element={
+                  user?.role === 'patient' ? (
+                    <ErrorBoundary context={{ component: 'Medications', action: 'load' }}>
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <Medications />
+                      </Suspense>
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                } 
               />
               <Route 
                 path="/symptoms" 
-                element={user?.role === 'patient' ? <Symptoms /> : <Navigate to="/login" />} 
+                element={
+                  user?.role === 'patient' ? (
+                    <ErrorBoundary context={{ component: 'Symptoms', action: 'load' }}>
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <Symptoms />
+                      </Suspense>
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                } 
               />
               <Route 
                 path="/teleconsultation" 
-                element={user ? <Teleconsultation /> : <Navigate to="/login" />} 
+                element={
+                  user ? (
+                    <ErrorBoundary context={{ component: 'Teleconsultation', action: 'load' }}>
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <Teleconsultation />
+                      </Suspense>
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                } 
               />
               <Route 
                 path="/education" 
-                element={user ? <Education /> : <Navigate to="/login" />} 
+                element={
+                  user ? (
+                    <ErrorBoundary context={{ component: 'Education', action: 'load' }}>
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <Education />
+                      </Suspense>
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                } 
               />
               <Route 
                 path="/reviews" 
-                element={user ? <Reviews /> : <Navigate to="/login" />} 
+                element={
+                  user ? (
+                    <ErrorBoundary context={{ component: 'Reviews', action: 'load' }}>
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <Reviews />
+                      </Suspense>
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                } 
               />
               <Route 
                 path="/diagnostic" 
-                element={user ? <DiagnosticTest /> : <Navigate to="/login" />} 
+                element={
+                  user ? (
+                    <ErrorBoundary context={{ component: 'DiagnosticTest', action: 'load' }}>
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <DiagnosticTest />
+                      </Suspense>
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                } 
               />
 
               <Route 

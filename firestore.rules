@@ -70,9 +70,9 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid;
     }
     
-    // Test collection for connection testing
-    match /test/{document=**} {
-      allow read, write: if true;
-    }
+    // Test collection for connection testing (REMOVE IN PRODUCTION)
+    // match /test/{document=**} {
+    //   allow read, write: if true;
+    // }
   }
 }
