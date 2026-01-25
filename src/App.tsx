@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Welcome from './pages/Welcome';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { AnimationProvider } from './contexts/AnimationContext';
 import { PageLoadingFallback } from './components/LoadingFallback';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineIndicator from './components/ui/OfflineIndicator';
@@ -72,16 +73,16 @@ function AppContent() {
           {user && <OfflineIndicator />}
           <main className={user ? "container mx-auto px-4 py-6" : ""}>
             <Routes>
-              <Route 
-                path="/login" 
-                element={user ? <Navigate to={user.role === 'patient' ? '/dashboard' : '/doctor-dashboard'} /> : <Login />} 
+              <Route
+                path="/login"
+                element={user ? <Navigate to={user.role === 'patient' ? '/dashboard' : '/doctor-dashboard'} /> : <Login />}
               />
-              <Route 
-                path="/register" 
-                element={user ? <Navigate to={user.role === 'patient' ? '/dashboard' : '/doctor-dashboard'} /> : <Register />} 
+              <Route
+                path="/register"
+                element={user ? <Navigate to={user.role === 'patient' ? '/dashboard' : '/doctor-dashboard'} /> : <Register />}
               />
-              <Route 
-                path="/dashboard" 
+              <Route
+                path="/dashboard"
                 element={
                   user?.role === 'patient' ? (
                     <ErrorBoundary context={{ component: 'PatientDashboard', action: 'load' }}>
@@ -92,10 +93,10 @@ function AppContent() {
                   ) : (
                     <Navigate to="/login" />
                   )
-                } 
+                }
               />
-              <Route 
-                path="/doctor-dashboard" 
+              <Route
+                path="/doctor-dashboard"
                 element={
                   user?.role === 'doctor' ? (
                     <ErrorBoundary context={{ component: 'DoctorDashboard', action: 'load' }}>
@@ -106,10 +107,10 @@ function AppContent() {
                   ) : (
                     <Navigate to="/login" />
                   )
-                } 
+                }
               />
-              <Route 
-                path="/appointments" 
+              <Route
+                path="/appointments"
                 element={
                   user ? (
                     <ErrorBoundary context={{ component: 'Appointments', action: 'load' }}>
@@ -120,10 +121,10 @@ function AppContent() {
                   ) : (
                     <Navigate to="/login" />
                   )
-                } 
+                }
               />
-              <Route 
-                path="/medications" 
+              <Route
+                path="/medications"
                 element={
                   user?.role === 'patient' ? (
                     <ErrorBoundary context={{ component: 'Medications', action: 'load' }}>
@@ -134,10 +135,10 @@ function AppContent() {
                   ) : (
                     <Navigate to="/login" />
                   )
-                } 
+                }
               />
-              <Route 
-                path="/symptoms" 
+              <Route
+                path="/symptoms"
                 element={
                   user?.role === 'patient' ? (
                     <ErrorBoundary context={{ component: 'Symptoms', action: 'load' }}>
@@ -148,10 +149,10 @@ function AppContent() {
                   ) : (
                     <Navigate to="/login" />
                   )
-                } 
+                }
               />
-              <Route 
-                path="/teleconsultation" 
+              <Route
+                path="/teleconsultation"
                 element={
                   user ? (
                     <ErrorBoundary context={{ component: 'Teleconsultation', action: 'load' }}>
@@ -162,10 +163,10 @@ function AppContent() {
                   ) : (
                     <Navigate to="/login" />
                   )
-                } 
+                }
               />
-              <Route 
-                path="/education" 
+              <Route
+                path="/education"
                 element={
                   user ? (
                     <ErrorBoundary context={{ component: 'Education', action: 'load' }}>
@@ -176,10 +177,10 @@ function AppContent() {
                   ) : (
                     <Navigate to="/login" />
                   )
-                } 
+                }
               />
-              <Route 
-                path="/reviews" 
+              <Route
+                path="/reviews"
                 element={
                   user ? (
                     <ErrorBoundary context={{ component: 'Reviews', action: 'load' }}>
@@ -190,10 +191,10 @@ function AppContent() {
                   ) : (
                     <Navigate to="/login" />
                   )
-                } 
+                }
               />
-              <Route 
-                path="/diagnostic" 
+              <Route
+                path="/diagnostic"
                 element={
                   user ? (
                     <ErrorBoundary context={{ component: 'DiagnosticTest', action: 'load' }}>
@@ -204,18 +205,18 @@ function AppContent() {
                   ) : (
                     <Navigate to="/login" />
                   )
-                } 
+                }
               />
 
-              <Route 
-                path="/" 
+              <Route
+                path="/"
                 element={
                   user ? (
                     <Navigate to={user.role === 'patient' ? '/dashboard' : '/doctor-dashboard'} />
                   ) : (
                     <Welcome />
                   )
-                } 
+                }
               />
 
             </Routes>
@@ -229,7 +230,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <AnimationProvider>
+        <AppContent />
+      </AnimationProvider>
     </AuthProvider>
   );
 }

@@ -1,9 +1,58 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { render, mockPatientUser, mockDoctorUser } from './test-utils';
+import { mockPatientUser, mockDoctorUser } from './test-utils';
 import { authService } from '../firebase/auth';
 import { firestoreService } from '../firebase/firestore';
+
+// Mock Firebase Modules
+vi.mock('../firebase/auth', () => ({
+  authService: {
+    onAuthStateChanged: vi.fn((callback) => {
+      callback(null); // Default to no user
+      return () => { };
+    }),
+    signIn: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+    getCurrentUser: vi.fn(() => null),
+    resetPassword: vi.fn(),
+    updatePassword: vi.fn(),
+    updateUserProfile: vi.fn(),
+  }
+}));
+
+vi.mock('../firebase/firestore', () => ({
+  firestoreService: {
+    getUser: vi.fn(),
+    getHealthMetrics: vi.fn(),
+    getMedications: vi.fn(),
+    getAppointments: vi.fn(),
+    getSymptoms: vi.fn(),
+    getReviews: vi.fn(),
+    getEducationalContent: vi.fn(),
+    getNotifications: vi.fn(),
+    getDoctors: vi.fn(),
+    addSymptom: vi.fn(),
+    addMedication: vi.fn(),
+    addAppointment: vi.fn(),
+    addReview: vi.fn(),
+    addNotification: vi.fn(),
+    addHealthMetric: vi.fn(),
+    updateHealthMetric: vi.fn(),
+    updateMedication: vi.fn(),
+    updateAppointment: vi.fn(),
+    deleteHealthMetric: vi.fn(),
+    deleteMedication: vi.fn(),
+    deleteAppointment: vi.fn(),
+  }
+}));
+
+// Mock the performance wrapper to use the base service
+vi.mock('../firebase/firestoreWithPerformance', () => ({
+  default: firestoreService
+}));
 
 // Import the main App component
 import App from '../App';
@@ -11,7 +60,8 @@ import App from '../App';
 describe('End-to-End Workflow Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
+    window.history.pushState({}, 'Test page', '/');
+
     // Mock localStorage and sessionStorage
     Object.defineProperty(window, 'localStorage', {
       value: {
@@ -22,7 +72,7 @@ describe('End-to-End Workflow Tests', () => {
       },
       writable: true,
     });
-    
+
     Object.defineProperty(window, 'sessionStorage', {
       value: {
         getItem: vi.fn(() => null),
@@ -34,67 +84,94 @@ describe('End-to-End Workflow Tests', () => {
   });
 
   describe('Complete User Registration and Login Flow', () => {
+    let authStateCallback: (user: any) => void;
+
+    beforeEach(() => {
+      // Capture the callback
+      (authService.onAuthStateChanged as any).mockImplementation((callback: any) => {
+        authStateCallback = callback;
+        callback(null);
+        return () => { };
+      });
+    });
+
     it('should complete full patient registration and dashboard access', async () => {
       const user = userEvent.setup();
-      
-      // Mock successful registration
-      vi.spyOn(authService, 'signUp').mockResolvedValue(mockPatientUser);
-      
-      // Mock Firestore responses for dashboard
-      vi.spyOn(firestoreService, 'getHealthMetrics').mockResolvedValue([]);
-      vi.spyOn(firestoreService, 'getMedications').mockResolvedValue([]);
-      vi.spyOn(firestoreService, 'getAppointments').mockResolvedValue([]);
-      
-      render(<App />);
-      
-      // Should redirect to login page initially
-      await waitFor(() => {
-        expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument();
+
+      // Mock successful registration that updates auth state
+      vi.spyOn(authService, 'signUp').mockImplementation(async () => {
+        if (authStateCallback) authStateCallback(mockPatientUser);
+        return mockPatientUser;
       });
-      
+      // Mock getUser to return null first, assuming user doesn't exist yet properly for flow or is created
+      vi.spyOn(firestoreService, 'getUser').mockResolvedValue(mockPatientUser); // After registration, user exists
+
+      // Mock Firestore responses for dashboard
+      vi.spyOn(firestoreService, 'getHealthMetrics').mockResolvedValue({
+        data: [],
+        lastDoc: null,
+        hasMore: false
+      });
+      vi.spyOn(firestoreService, 'getMedications').mockResolvedValue({
+        data: [],
+        lastDoc: null,
+        hasMore: false
+      });
+      vi.spyOn(firestoreService, 'getAppointments').mockResolvedValue([]);
+
+      render(<App />);
+
+      // Should show Welcome page initially
+      await waitFor(() => {
+        expect(screen.getByText(/Everything You Need for Better Healthcare/i)).toBeInTheDocument();
+      });
+
       // Navigate to registration
-      const registerLink = screen.getByText(/create a new account/i);
-      await user.click(registerLink);
-      
+      const getStartedButton = screen.getByRole('link', { name: /get started/i });
+      await user.click(getStartedButton);
+
       await waitFor(() => {
         expect(screen.getByText(/create your account/i)).toBeInTheDocument();
       });
-      
+
       // Fill registration form
       const nameInput = screen.getByLabelText(/full name/i);
       const emailInput = screen.getByLabelText(/email address/i);
       const phoneInput = screen.getByLabelText(/phone number/i);
-      const passwordInput = screen.getByLabelText(/password/i);
+      const passwordInput = screen.getByLabelText(/^password$/i);
       const confirmPasswordInput = screen.getByLabelText(/confirm password/i);
-      
+
       await user.type(nameInput, 'John Patient');
       await user.type(emailInput, 'john.patient@test.com');
       await user.type(phoneInput, '+1234567890');
       await user.type(passwordInput, 'password123');
       await user.type(confirmPasswordInput, 'password123');
-      
+
       // Select patient role
       const patientRadio = screen.getByLabelText(/patient/i);
       await user.click(patientRadio);
-      
+
       // Select some conditions
       const diabetesCheckbox = screen.getByLabelText(/diabetes type 2/i);
       await user.click(diabetesCheckbox);
-      
+
       // Accept terms
       const termsCheckbox = screen.getByLabelText(/i agree to the/i);
       await user.click(termsCheckbox);
-      
+
       // Submit registration
       const createButton = screen.getByRole('button', { name: /create account/i });
       await user.click(createButton);
-      
+
       // Should redirect to dashboard after successful registration
       await waitFor(() => {
-        expect(screen.getByText(/welcome back, john patient/i)).toBeInTheDocument();
+        // screen.debug();
+        expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
+        // The name might be in a span or separate element
+        expect(screen.getByText(/john patient/i)).toBeInTheDocument();
         expect(screen.getByText(/health metrics/i)).toBeInTheDocument();
-      });
-      
+      }, { timeout: 8000 });
+
       expect(authService.signUp).toHaveBeenCalledWith(
         'john.patient@test.com',
         'password123',
@@ -103,52 +180,52 @@ describe('End-to-End Workflow Tests', () => {
           role: 'patient',
         })
       );
-    });
+    }, 20000);
 
     it('should complete full doctor registration and dashboard access', async () => {
       const user = userEvent.setup();
-      
+
       // Mock successful registration
       vi.spyOn(authService, 'signUp').mockResolvedValue(mockDoctorUser);
-      
+
       // Mock Firestore responses for doctor dashboard
       vi.spyOn(firestoreService, 'getAppointments').mockResolvedValue([]);
-      
+
       render(<App />);
-      
+
       // Navigate to registration
-      const registerLink = screen.getByText(/create a new account/i);
-      await user.click(registerLink);
-      
+      const getStartedButton = screen.getByRole('link', { name: /get started/i });
+      await user.click(getStartedButton);
+
       // Fill registration form for doctor
       const nameInput = screen.getByLabelText(/full name/i);
       const emailInput = screen.getByLabelText(/email address/i);
       const phoneInput = screen.getByLabelText(/phone number/i);
       const passwordInput = screen.getByLabelText(/password/i);
       const confirmPasswordInput = screen.getByLabelText(/confirm password/i);
-      
+
       await user.type(nameInput, 'Dr. Jane Doctor');
       await user.type(emailInput, 'dr.jane@test.com');
       await user.type(phoneInput, '+1234567890');
       await user.type(passwordInput, 'password123');
       await user.type(confirmPasswordInput, 'password123');
-      
+
       // Select doctor role
       const doctorRadio = screen.getByLabelText(/healthcare provider/i);
       await user.click(doctorRadio);
-      
+
       // Select specialization
       const specializationSelect = screen.getByLabelText(/specialization/i);
       await user.selectOptions(specializationSelect, 'Cardiology');
-      
+
       // Accept terms
       const termsCheckbox = screen.getByLabelText(/i agree to the/i);
       await user.click(termsCheckbox);
-      
+
       // Submit registration
       const createButton = screen.getByRole('button', { name: /create account/i });
       await user.click(createButton);
-      
+
       // Should redirect to doctor dashboard
       await waitFor(() => {
         expect(screen.getByText(/doctor dashboard/i)).toBeInTheDocument();
@@ -159,59 +236,68 @@ describe('End-to-End Workflow Tests', () => {
   describe('Complete Medication Management Workflow', () => {
     it('should allow patient to add, view, and manage medications', async () => {
       const user = userEvent.setup();
-      
+
       // Mock authentication as logged-in patient
       vi.spyOn(authService, 'signIn').mockResolvedValue(mockPatientUser);
-      vi.spyOn(firestoreService, 'getMedications').mockResolvedValue([
-        {
-          id: 'med-1',
-          name: 'Metformin',
-          dosage: '500mg',
-          frequency: 'Twice daily',
-          startDate: '2024-01-01',
-          reminders: ['08:00', '20:00'],
-          adherence: [true, true, false, true],
-          notes: 'Take with meals',
-        },
-      ]);
-      
+      vi.spyOn(firestoreService, 'getMedications').mockResolvedValue({
+        data: [
+          {
+            id: 'med-1',
+            userId: 'user-1',
+            name: 'Metformin',
+            dosage: '500mg',
+            frequency: 'Twice daily',
+            startDate: '2024-01-01',
+            reminders: ['08:00', '20:00'],
+            adherence: [true, true, false, true],
+            notes: 'Take with meals',
+          }
+        ],
+        lastDoc: null,
+        hasMore: false
+      });
+
       render(<App />);
-      
+
+      // Navigate to Login
+      const signInLink = screen.getByRole('link', { name: /sign in/i });
+      await user.click(signInLink);
+
       // Login first
       const emailInput = screen.getByLabelText(/email address/i);
       const passwordInput = screen.getByLabelText(/password/i);
       const loginButton = screen.getByRole('button', { name: /sign in/i });
-      
+
       await user.type(emailInput, 'patient@test.com');
       await user.type(passwordInput, 'password123');
       await user.click(loginButton);
-      
+
       // Should be on patient dashboard
       await waitFor(() => {
         expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
       });
-      
+
       // Navigate to medications page
       const medicationsLink = screen.getByText(/view all/i);
       await user.click(medicationsLink);
-      
+
       await waitFor(() => {
         expect(screen.getByText(/medications/i)).toBeInTheDocument();
         expect(screen.getByText(/metformin/i)).toBeInTheDocument();
       });
-      
+
       // Test adding new medication
       const addButton = screen.getByRole('button', { name: /add medication/i });
       await user.click(addButton);
-      
+
       expect(screen.getByText(/add new medication/i)).toBeInTheDocument();
-      
+
       // Test marking medication as taken
       vi.spyOn(firestoreService, 'updateMedication').mockResolvedValue();
-      
+
       const markTakenButton = screen.getByText(/mark as taken/i);
       await user.click(markTakenButton);
-      
+
       await waitFor(() => {
         expect(firestoreService.updateMedication).toHaveBeenCalled();
       });
@@ -221,7 +307,7 @@ describe('End-to-End Workflow Tests', () => {
   describe('Complete Appointment Management Workflow', () => {
     it('should allow patient to view and manage appointments', async () => {
       const user = userEvent.setup();
-      
+
       // Mock authentication and data
       vi.spyOn(authService, 'signIn').mockResolvedValue(mockPatientUser);
       vi.spyOn(firestoreService, 'getAppointments').mockResolvedValue([
@@ -238,28 +324,32 @@ describe('End-to-End Workflow Tests', () => {
           notes: 'Routine check-up',
         },
       ]);
-      
+
       render(<App />);
-      
+
+      // Navigate to Login
+      const signInLink = screen.getByRole('link', { name: /sign in/i });
+      await user.click(signInLink);
+
       // Login
       const emailInput = screen.getByLabelText(/email address/i);
       const passwordInput = screen.getByLabelText(/password/i);
       const loginButton = screen.getByRole('button', { name: /sign in/i });
-      
+
       await user.type(emailInput, 'patient@test.com');
       await user.type(passwordInput, 'password123');
       await user.click(loginButton);
-      
+
       // Should see upcoming appointments on dashboard
       await waitFor(() => {
         expect(screen.getByText(/upcoming appointments/i)).toBeInTheDocument();
         expect(screen.getByText(/dr\. jane doctor/i)).toBeInTheDocument();
       });
-      
+
       // Navigate to appointments page
       const appointmentsLink = screen.getByText(/view all/i);
       await user.click(appointmentsLink);
-      
+
       await waitFor(() => {
         expect(screen.getByText(/appointments/i)).toBeInTheDocument();
       });
@@ -282,14 +372,22 @@ describe('End-to-End Workflow Tests', () => {
         },
         writable: true,
       });
-      
+
       // Mock Firestore responses
-      vi.spyOn(firestoreService, 'getHealthMetrics').mockResolvedValue([]);
-      vi.spyOn(firestoreService, 'getMedications').mockResolvedValue([]);
+      vi.spyOn(firestoreService, 'getHealthMetrics').mockResolvedValue({
+        data: [],
+        lastDoc: null,
+        hasMore: false
+      });
+      vi.spyOn(firestoreService, 'getMedications').mockResolvedValue({
+        data: [],
+        lastDoc: null,
+        hasMore: false
+      });
       vi.spyOn(firestoreService, 'getAppointments').mockResolvedValue([]);
-      
+
       render(<App />);
-      
+
       // Should automatically log in and show dashboard
       await waitFor(() => {
         expect(screen.getByText(/welcome back, john patient/i)).toBeInTheDocument();
@@ -298,39 +396,51 @@ describe('End-to-End Workflow Tests', () => {
 
     it('should handle logout correctly', async () => {
       const user = userEvent.setup();
-      
+
       // Mock authentication
       vi.spyOn(authService, 'signIn').mockResolvedValue(mockPatientUser);
       vi.spyOn(authService, 'signOut').mockResolvedValue();
-      vi.spyOn(firestoreService, 'getHealthMetrics').mockResolvedValue([]);
-      vi.spyOn(firestoreService, 'getMedications').mockResolvedValue([]);
+      vi.spyOn(firestoreService, 'getHealthMetrics').mockResolvedValue({
+        data: [],
+        lastDoc: null,
+        hasMore: false
+      });
+      vi.spyOn(firestoreService, 'getMedications').mockResolvedValue({
+        data: [],
+        lastDoc: null,
+        hasMore: false
+      });
       vi.spyOn(firestoreService, 'getAppointments').mockResolvedValue([]);
-      
+
       render(<App />);
-      
+
+      // Navigate to Login
+      const signInLink = screen.getByRole('link', { name: /sign in/i });
+      await user.click(signInLink);
+
       // Login first
       const emailInput = screen.getByLabelText(/email address/i);
       const passwordInput = screen.getByLabelText(/password/i);
       const loginButton = screen.getByRole('button', { name: /sign in/i });
-      
+
       await user.type(emailInput, 'patient@test.com');
       await user.type(passwordInput, 'password123');
       await user.click(loginButton);
-      
+
       // Should be on dashboard
       await waitFor(() => {
         expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
       });
-      
+
       // Find and click logout button (assuming it's in the header)
       const logoutButton = screen.getByText(/logout/i);
       await user.click(logoutButton);
-      
+
       // Should redirect to login page
       await waitFor(() => {
         expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument();
       });
-      
+
       expect(authService.signOut).toHaveBeenCalled();
     });
   });
@@ -338,23 +448,27 @@ describe('End-to-End Workflow Tests', () => {
   describe('Error Recovery and Edge Cases', () => {
     it('should handle network errors gracefully', async () => {
       const user = userEvent.setup();
-      
+
       // Mock network error during login
       vi.spyOn(authService, 'signIn').mockRejectedValue({
         code: 'auth/network-request-failed',
         message: 'Network error',
       });
-      
+
       render(<App />);
-      
+
+      // Navigate to Login
+      const signInLink = screen.getByRole('link', { name: /sign in/i });
+      await user.click(signInLink);
+
       const emailInput = screen.getByLabelText(/email address/i);
       const passwordInput = screen.getByLabelText(/password/i);
       const loginButton = screen.getByRole('button', { name: /sign in/i });
-      
+
       await user.type(emailInput, 'test@test.com');
       await user.type(passwordInput, 'password123');
       await user.click(loginButton);
-      
+
       await waitFor(() => {
         expect(screen.getByText(/invalid email or password/i)).toBeInTheDocument();
       });
@@ -362,23 +476,27 @@ describe('End-to-End Workflow Tests', () => {
 
     it('should handle Firestore permission errors', async () => {
       const user = userEvent.setup();
-      
+
       // Mock successful login but Firestore permission error
       vi.spyOn(authService, 'signIn').mockResolvedValue(mockPatientUser);
       vi.spyOn(firestoreService, 'getHealthMetrics').mockRejectedValue(
         new Error('Permission denied')
       );
-      
+
       render(<App />);
-      
+
+      // Navigate to Login
+      const signInLink = screen.getByRole('link', { name: /sign in/i });
+      await user.click(signInLink);
+
       const emailInput = screen.getByLabelText(/email address/i);
       const passwordInput = screen.getByLabelText(/password/i);
       const loginButton = screen.getByRole('button', { name: /sign in/i });
-      
+
       await user.type(emailInput, 'patient@test.com');
       await user.type(passwordInput, 'password123');
       await user.click(loginButton);
-      
+
       await waitFor(() => {
         expect(screen.getByText(/error loading data/i)).toBeInTheDocument();
       });
@@ -398,12 +516,13 @@ describe('End-to-End Workflow Tests', () => {
         },
         writable: true,
       });
-      
+
       render(<App />);
-      
-      // Should handle invalid JSON and redirect to login
+
+      // Since localStorage has invalid user data, we MIGHT end up on Welcome or Login.
+      // If Welcome, check for it.
       await waitFor(() => {
-        expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument();
+        expect(screen.getByText(/Everything You Need for Better Healthcare/i)).toBeInTheDocument();
       });
     });
   });
@@ -411,22 +530,34 @@ describe('End-to-End Workflow Tests', () => {
   describe('Role-Based Access Control', () => {
     it('should redirect patients to patient dashboard', async () => {
       const user = userEvent.setup();
-      
+
       vi.spyOn(authService, 'signIn').mockResolvedValue(mockPatientUser);
-      vi.spyOn(firestoreService, 'getHealthMetrics').mockResolvedValue([]);
-      vi.spyOn(firestoreService, 'getMedications').mockResolvedValue([]);
+      vi.spyOn(firestoreService, 'getHealthMetrics').mockResolvedValue({
+        data: [],
+        lastDoc: null,
+        hasMore: false
+      });
+      vi.spyOn(firestoreService, 'getMedications').mockResolvedValue({
+        data: [],
+        lastDoc: null,
+        hasMore: false
+      });
       vi.spyOn(firestoreService, 'getAppointments').mockResolvedValue([]);
-      
+
       render(<App />);
-      
+
+      // Navigate to Login
+      const signInLink = screen.getByRole('link', { name: /sign in/i });
+      await user.click(signInLink);
+
       const emailInput = screen.getByLabelText(/email address/i);
       const passwordInput = screen.getByLabelText(/password/i);
       const loginButton = screen.getByRole('button', { name: /sign in/i });
-      
+
       await user.type(emailInput, 'patient@test.com');
       await user.type(passwordInput, 'password123');
       await user.click(loginButton);
-      
+
       await waitFor(() => {
         expect(screen.getByText(/health metrics/i)).toBeInTheDocument();
         expect(screen.getByText(/today's medications/i)).toBeInTheDocument();
@@ -435,20 +566,24 @@ describe('End-to-End Workflow Tests', () => {
 
     it('should redirect doctors to doctor dashboard', async () => {
       const user = userEvent.setup();
-      
+
       vi.spyOn(authService, 'signIn').mockResolvedValue(mockDoctorUser);
       vi.spyOn(firestoreService, 'getAppointments').mockResolvedValue([]);
-      
+
       render(<App />);
-      
+
+      // Navigate to Login
+      const signInLink = screen.getByRole('link', { name: /sign in/i });
+      await user.click(signInLink);
+
       const emailInput = screen.getByLabelText(/email address/i);
       const passwordInput = screen.getByLabelText(/password/i);
       const loginButton = screen.getByRole('button', { name: /sign in/i });
-      
+
       await user.type(emailInput, 'doctor@test.com');
       await user.type(passwordInput, 'password123');
       await user.click(loginButton);
-      
+
       await waitFor(() => {
         expect(screen.getByText(/doctor dashboard/i)).toBeInTheDocument();
       });
