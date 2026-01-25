@@ -14,6 +14,28 @@ vi.mock('../../utils/medicationUtils', () => ({
   getInteractionSeverityIcon: vi.fn(),
 }));
 
+// Mock Firebase services
+vi.mock('../../firebase/auth', () => ({
+  authService: {
+    onAuthStateChanged: vi.fn((callback) => {
+      callback(null);
+      return () => { };
+    }),
+    signIn: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+    getCurrentUser: vi.fn(() => null),
+  }
+}));
+
+vi.mock('../../firebase/firestore', () => ({
+  firestoreService: {
+    getUser: vi.fn(),
+    getMedications: vi.fn(),
+    addMedication: vi.fn(),
+  }
+}));
+
 describe('MedicationForm', () => {
   const mockOnSubmit = vi.fn();
   const mockOnCancel = vi.fn();
@@ -26,19 +48,21 @@ describe('MedicationForm', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Setup default mocks
     vi.mocked(medicationUtils.searchMedications).mockResolvedValue([
       'Metformin',
       'Lisinopril'
     ]);
-    
+
     vi.mocked(medicationUtils.getDosageInformation).mockResolvedValue({
+      medication: 'Metformin',
       recommendedDose: '500mg',
       maxDailyDose: '2000mg',
-      instructions: 'Take with meals'
+      frequency: 'Twice daily',
+      notes: ['Take with meals']
     });
-    
+
     vi.mocked(medicationUtils.checkDrugInteractions).mockResolvedValue([]);
   });
 
@@ -161,11 +185,11 @@ describe('MedicationForm', () => {
 
     it('should check for drug interactions', async () => {
       const existingMedications = [
-        { 
-          id: '1', 
+        {
+          id: '1',
           userId: 'user-1',
-          name: 'Warfarin', 
-          dosage: '5mg', 
+          name: 'Warfarin',
+          dosage: '5mg',
           frequency: 'once_daily',
           startDate: '2024-01-01',
           reminders: [],
@@ -227,7 +251,7 @@ describe('MedicationForm', () => {
     it('should handle submission errors', async () => {
       const user = userEvent.setup();
       mockOnSubmit.mockRejectedValue(new Error('Submission failed'));
-      
+
       render(<MedicationForm {...defaultProps} />);
 
       // Fill out form
@@ -267,7 +291,7 @@ describe('MedicationForm', () => {
       await user.selectOptions(screen.getByLabelText(/frequency/i), 'twice_daily');
 
       const submitButton = screen.getByRole('button', { name: /add medication/i });
-      
+
       // Check button is present and clickable (animation ready)
       expect(submitButton).toBeInTheDocument();
       expect(submitButton).not.toBeDisabled();
@@ -278,7 +302,7 @@ describe('MedicationForm', () => {
     it('should handle medication search API errors', async () => {
       const user = userEvent.setup();
       vi.mocked(medicationUtils.searchMedications).mockRejectedValue(new Error('API Error'));
-      
+
       render(<MedicationForm {...defaultProps} />);
 
       const nameInput = screen.getByLabelText(/medication name/i);
@@ -291,13 +315,13 @@ describe('MedicationForm', () => {
     it('should handle drug interaction check errors', async () => {
       const user = userEvent.setup();
       vi.mocked(medicationUtils.checkDrugInteractions).mockRejectedValue(new Error('API Error'));
-      
+
       const existingMedications = [
-        { 
-          id: '1', 
+        {
+          id: '1',
           userId: 'user-1',
-          name: 'Warfarin', 
-          dosage: '5mg', 
+          name: 'Warfarin',
+          dosage: '5mg',
           frequency: 'once_daily',
           startDate: '2024-01-01',
           reminders: [],

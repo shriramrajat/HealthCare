@@ -24,6 +24,9 @@
     "verify:deployment": "node verify-deployment.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.0.1",
+    "@capacitor/cli": "^8.0.1",
+    "@capacitor/core": "^8.0.1",
     "@hookform/resolvers": "^5.2.2",
     "firebase": "^12.4.0",
     "framer-motion": "^12.23.24",

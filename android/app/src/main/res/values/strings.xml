@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HealthCare Plus</string>
+    <string name="title_activity_main">HealthCare Plus</string>
+    <string name="package_name">com.healthcare.app</string>
+    <string name="custom_url_scheme">com.healthcare.app</string>
+</resources>

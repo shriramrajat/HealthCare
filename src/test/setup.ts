@@ -1,4 +1,5 @@
 // Test setup file for mocking browser APIs
+import '@testing-library/jest-dom';
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
@@ -7,28 +8,28 @@ Object.defineProperty(window, 'matchMedia', {
     matches: false,
     media: query,
     onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => {},
+    addListener: () => { },
+    removeListener: () => { },
+    addEventListener: () => { },
+    removeEventListener: () => { },
+    dispatchEvent: () => { },
   }),
 });
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  constructor() { }
+  observe() { }
+  unobserve() { }
+  disconnect() { }
 };
 
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
-  constructor() {}
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  constructor() { }
+  observe() { }
+  unobserve() { }
+  disconnect() { }
 };
 
 // Mock performance.now
@@ -45,7 +46,7 @@ Object.defineProperty(navigator, 'hardwareConcurrency', {
 });
 
 // Mock canvas context for WebGL detection
-HTMLCanvasElement.prototype.getContext = function(contextId: string) {
+HTMLCanvasElement.prototype.getContext = function (contextId: string) {
   if (contextId === 'webgl' || contextId === 'experimental-webgl') {
     return {
       // Mock WebGL context
@@ -65,4 +66,4 @@ global.cancelAnimationFrame = (id: number) => {
   clearTimeout(id);
 };
 
-export {};
+export { };
