@@ -126,13 +126,23 @@ const Header: React.FC = () => {
 
             {/* User Menu */}
             <div className="flex items-center space-x-2">
-              <div className="hidden md:block text-right">
-                <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                <p className="text-xs text-gray-500 capitalize">{user.role}</p>
-              </div>
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-blue-600" />
-              </div>
+              <Link
+                to="/profile"
+                className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg p-1 transition-colors group"
+                title="View Profile"
+              >
+                <div className="hidden md:block text-right">
+                  <p className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{user.name}</p>
+                  <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                </div>
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden border border-blue-200">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="h-4 w-4 text-blue-600" />
+                  )}
+                </div>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="p-2 text-gray-600 hover:text-red-600 transition-colors"
