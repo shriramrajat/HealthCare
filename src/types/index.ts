@@ -152,6 +152,16 @@ export interface TeleconsultationSettings {
   timezone: string;
 }
 
+export interface ChatMessage {
+  id: string;
+  consultationId: string;
+  senderId: string;
+  senderName: string;
+  text: string;
+  timestamp: string;
+  role: 'doctor' | 'patient';
+}
+
 
 export interface MedicalDocument {
   id: string;
