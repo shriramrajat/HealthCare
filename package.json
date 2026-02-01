@@ -30,6 +30,8 @@
     "@hookform/resolvers": "^5.2.2",
     "firebase": "^12.4.0",
     "framer-motion": "^12.23.24",
+    "jspdf": "^4.0.0",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
