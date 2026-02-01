@@ -3,10 +3,11 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { X, CheckCircle, AlertTriangle, AlertCircle, Info } from 'lucide-react';
 
 const NotificationContainer: React.FC = () => {
-  const { notifications, removeNotification } = useNotifications();
+  // Use 'toasts' instead of 'notifications' for the floating alerts
+  const { toasts, removeToast } = useNotifications();
 
-  const visibleNotifications = notifications
-    .filter(n => !n.read)
+  const visibleNotifications = toasts
+    .filter(n => !n.read) // Toasts are usually unread by definition until dismissed
     .slice(0, 3);
 
   const getIcon = (type: string) => {
@@ -33,7 +34,7 @@ const NotificationContainer: React.FC = () => {
         <NotificationToast
           key={notification.id}
           notification={notification}
-          onRemove={removeNotification}
+          onRemove={removeToast}
           icon={getIcon(notification.type)}
           backgroundColor={getBackgroundColor(notification.type)}
         />
