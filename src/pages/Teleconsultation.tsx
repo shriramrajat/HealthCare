@@ -24,7 +24,6 @@ import AnimatedButton from '../components/ui/AnimatedButton';
 import { useLocation } from 'react-router-dom';
 import { firestoreService } from '../firebase/firestore';
 import { ConsultationRecord, ChatMessage } from '../types';
-import { Unsubscribe } from 'firebase/firestore';
 
 
 const Teleconsultation: React.FC = () => {
