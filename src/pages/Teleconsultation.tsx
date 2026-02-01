@@ -26,6 +26,8 @@ import { useLocation } from 'react-router-dom';
 
 const Teleconsultation: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const appointment = location.state?.appointment;
   const { addNotification } = useNotifications();
   const [isInCall, setIsInCall] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
@@ -128,8 +130,8 @@ const Teleconsultation: React.FC = () => {
                     key={tab.id}
                     onClick={() => handleViewChange(tab.id as any)}
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center space-x-2 ${activeView === tab.id
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
                       }`}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
