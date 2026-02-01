@@ -2,6 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { auth } from '../firebase/config';
 import { signInWithEmailAndPassword, fetchSignInMethodsForEmail } from 'firebase/auth';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
+
+const AdminPromoter = ({ log }: { log: (msg: string) => void }) => {
+    const { user, updateProfile } = useAuth();
+
+    const handlePromote = async () => {
+        if (!user) {
+            log('❌ No user logged in');
+            return;
+        }
+        try {
+            await updateProfile({ role: 'admin' as any }); // Cast as any because role might be restrictive in some types, but we updated index.ts
+            log(`✅ User ${user.email} promoted to ADMIN!`);
+            log('⚠️ Note: You may need to refresh the page/re-login for claims to fully propagate if strict.');
+        } catch (e: any) {
+            log(`❌ Promotion failed: ${e.message}`);
+        }
+    };
+
+    return (
+        <button onClick={handlePromote} className="bg-red-600 text-white px-4 py-2 rounded">
+            Make Me Admin
+        </button>
+    );
+};
 
 const NotificationTester = ({ log }: { log: (msg: string) => void }) => {
     const { addSystemNotification } = useNotifications();
@@ -99,6 +124,7 @@ const DebugPage: React.FC = () => {
                         Check Providers
                     </button>
                     <NotificationTester log={addLog} />
+                    <AdminPromoter log={addLog} />
                 </div>
             </div>
 

@@ -83,7 +83,15 @@ const AdminDashboard: React.FC = () => {
                     <Shield className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        Admin Dashboard
+                        <span className={`text-xs px-2 py-1 rounded-full border ${user?.role === 'admin'
+                                ? 'bg-green-100 text-green-800 border-green-200'
+                                : 'bg-red-100 text-red-800 border-red-200'
+                            }`}>
+                            Role: {user?.role || 'unknown'}
+                        </span>
+                    </h1>
                     <p className="text-gray-600">Manage doctor verifications and system status</p>
                 </div>
             </div>
