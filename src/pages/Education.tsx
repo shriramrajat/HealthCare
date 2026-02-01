@@ -35,7 +35,6 @@ const Education: React.FC = () => {
           setContent(fetchedContent);
         } else {
           // Seed initial content if database is empty
-          console.log('Seeding educational content...');
           const mockContent: EducationalContent[] = [
             {
               id: '1',

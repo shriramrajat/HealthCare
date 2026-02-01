@@ -6,10 +6,7 @@ import {
   Star,
   TrendingUp,
   Activity,
-  CheckCircle,
-  XCircle,
   AlertCircle,
-  Video,
   Loader
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -70,7 +67,6 @@ const DoctorDashboard: React.FC = () => {
   const handleJoinCall = (appointmentId: string) => {
     const appointment = appointments.find(a => a.id === appointmentId);
 
-    console.log('Joining call for appointment:', appointmentId);
     addNotification({
       title: 'Joining Call',
       message: 'Redirecting to secure video room...',

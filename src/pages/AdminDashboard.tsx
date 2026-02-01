@@ -58,8 +58,7 @@ const AdminDashboard: React.FC = () => {
         }
     };
 
-    const handleReject = (doctorId: string) => {
-        console.log(`Rejecting doctor ${doctorId}`);
+    const handleReject = (_doctorId: string) => {
         // For now, just remove from list locally or implement delete logic
         // We'll just show a "Not Implemented" toast for safety against accidental deletions in demo
         addNotification({
@@ -86,8 +85,8 @@ const AdminDashboard: React.FC = () => {
                     <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                         Admin Dashboard
                         <span className={`text-xs px-2 py-1 rounded-full border ${user?.role === 'admin'
-                                ? 'bg-green-100 text-green-800 border-green-200'
-                                : 'bg-red-100 text-red-800 border-red-200'
+                            ? 'bg-green-100 text-green-800 border-green-200'
+                            : 'bg-red-100 text-red-800 border-red-200'
                             }`}>
                             Role: {user?.role || 'unknown'}
                         </span>

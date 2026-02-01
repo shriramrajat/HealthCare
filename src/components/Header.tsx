@@ -30,13 +30,11 @@ const Header: React.FC = () => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleLogout = () => {
-    console.log('Logout clicked');
     logout();
     navigate('/login');
   };
 
-  const handleNavClick = (path: string) => {
-    console.log('Navigation clicked:', path);
+  const handleNavClick = (_path: string) => {
     setIsMenuOpen(false);
   };
 

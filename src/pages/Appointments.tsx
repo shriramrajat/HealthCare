@@ -8,14 +8,6 @@ import {
   Plus,
   Calendar,
   Clock,
-  User,
-  Video,
-  Phone,
-  MapPin,
-  CheckCircle,
-  XCircle,
-  Clock3,
-  AlertCircle,
   Search,
   Filter
 } from 'lucide-react';
@@ -34,13 +26,15 @@ const Appointments: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [loading, setLoading] = useState(true);
 
-  // Debug logging
-  console.log('Appointments page loaded, user:', user);
-  console.log('Current pathname:', window.location.pathname);
-
   useEffect(() => {
     const loadAppointments = async () => {
       if (!user?.id) return;
+
+      // Only load appointments for patients or doctors
+      if (user.role !== 'patient' && user.role !== 'doctor') {
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
@@ -164,6 +158,9 @@ const Appointments: React.FC = () => {
   };
 
   const stats = getStatusStats();
+
+  // Helper to safely get role as supported types
+  const userRole = (user?.role === 'patient' || user?.role === 'doctor') ? user.role : 'patient';
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -301,7 +298,7 @@ const Appointments: React.FC = () => {
             <AppointmentCard
               key={appointment.id}
               appointment={appointment}
-              userRole={user?.role || 'patient'}
+              userRole={userRole}
               onConfirm={user?.role === 'doctor' ? handleConfirmAppointment : undefined}
               onCancel={handleCancelAppointment}
               onJoinCall={handleJoinCall}
@@ -337,14 +334,10 @@ const Appointments: React.FC = () => {
           onClose={() => setShowBookingForm(false)}
           onSuccess={() => {
             // Trigger a reload of appointments
-            if (user?.id) {
-              // We need to re-fetch. Since loadAppointments is inside useEffect, 
-              // the cleanest way without heavy refactoring is to toggle a trigger or just duplicate the fetch 
-              // call or move loadAppointments out.
-              // Let's blindly refetch here for now:
+            if (user?.id && (user.role === 'patient' || user.role === 'doctor')) {
               (async () => {
                 try {
-                  const userAppointments = await firestoreService.getAppointments(user.id, user.role);
+                  const userAppointments = await firestoreService.getAppointments(user.id, user.role as 'patient' | 'doctor');
                   setAppointments(userAppointments);
                 } catch (e) { console.error(e); }
               })();
