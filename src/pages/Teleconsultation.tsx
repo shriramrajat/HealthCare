@@ -23,7 +23,8 @@ import TeleconsultationSettings from '../components/teleconsultation/Teleconsult
 import AnimatedButton from '../components/ui/AnimatedButton';
 import { useLocation } from 'react-router-dom';
 import { firestoreService } from '../firebase/firestore';
-import { ConsultationRecord } from '../types';
+import { ConsultationRecord, ChatMessage } from '../types';
+import { Unsubscribe } from 'firebase/firestore';
 
 
 const Teleconsultation: React.FC = () => {
@@ -43,8 +44,11 @@ const Teleconsultation: React.FC = () => {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
-  const [messages, setMessages] = useState<Array<{ id: string; sender: string; message: string; time: string }>>([]);
+
+  // Chat State
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const consultationId = appointment?.id || 'demo-consultation-id';
 
   // New state for managing different views
   const [activeView, setActiveView] = useState<'main' | 'schedule' | 'records' | 'settings'>('main');
@@ -64,6 +68,14 @@ const Teleconsultation: React.FC = () => {
     }
     return () => clearInterval(interval);
   }, [isInCall]);
+
+  // Subscribe to chat messages
+  useEffect(() => {
+    const unsubscribe = firestoreService.subscribeToChat(consultationId, (newMessages) => {
+      setMessages(newMessages);
+    });
+    return () => unsubscribe();
+  }, [consultationId]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -115,10 +127,6 @@ const Teleconsultation: React.FC = () => {
         };
         await firestoreService.addConsultationRecord(record);
       } else {
-        // Fallback if no appointment context - maybe just log logically or skip
-        // For now, we'll try to save minimal info if we can, or just notify success
-        // But strictly we need patient info. 
-        // If we don't have appointment, we can't save a proper record easily.
         console.warn('No appointment context for consultation record');
       }
 
@@ -142,19 +150,30 @@ const Teleconsultation: React.FC = () => {
     }
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim()) {
-      const message = {
-        id: Date.now().toString(),
-        sender: user?.name || 'You',
-        message: newMessage,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, message]);
-      setNewMessage('');
+    if (newMessage.trim() && user) {
+      try {
+        await firestoreService.sendMessage({
+          consultationId,
+          senderId: user.id,
+          senderName: user.name,
+          text: newMessage,
+          role: user.role,
+          timestamp: new Date().toISOString() // will be replaced by serverTimestamp
+        } as any);
+        setNewMessage('');
+      } catch (error) {
+        console.error('Failed to send message:', error);
+        addNotification({
+          title: 'Error',
+          message: 'Failed to send message',
+          type: 'error'
+        });
+      }
     }
   };
+
 
   const handleViewChange = (view: 'main' | 'schedule' | 'records' | 'settings') => {
     setIsLoading(true);
@@ -687,85 +706,54 @@ const Teleconsultation: React.FC = () => {
         </motion.div>
       </div>
 
-  // Chat State
-      const [messages, setMessages] = useState<ChatMessage[]>([]);
-      const [newMessage, setNewMessage] = useState('');
-      const consultationId = appointment?.id || 'demo-consultation-id';
-
-  // Subscribe to chat messages
-  useEffect(() => {
-    const unsubscribe = firestoreService.subscribeToChat(consultationId, (newMessages) => {
-        setMessages(newMessages);
-    });
-    return () => unsubscribe();
-  }, [consultationId]);
-
-  // ... existing code ...
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-        e.preventDefault();
-      if (newMessage.trim() && user) {
-      try {
-        await firestoreService.sendMessage({
-          consultationId,
-          senderId: user.id,
-          senderName: user.name,
-          text: newMessage,
-          role: user.role,
-          timestamp: new Date().toISOString() // will be replaced by serverTimestamp
-        } as any); // using as any to bypass local timestamp vs serverTimestamp type mismatch usually handled
-      setNewMessage('');
-      } catch (error) {
-        console.error('Failed to send message:', error);
-      addNotification({
-        title: 'Error',
-      message: 'Failed to send message',
-      type: 'error'
-        });
-      }
-    }
-  };
-
-      // ... existing code ...
-
       {/* Chat Sidebar */}
-      <div className="hidden fixed right-0 top-0 h-full w-80 bg-white border-l border-gray-200 flex flex-col">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900">Chat</h3>
+      <div className="hidden md:flex fixed right-0 top-0 h-full w-80 bg-white border-l border-gray-200 flex-col z-20">
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <h3 className="font-semibold text-gray-900 flex items-center">
+            <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
+            Consultation Chat
+          </h3>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`space-y-1 ${msg.senderId === user?.id ? 'items-end flex flex-col' : ''}`}>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-gray-900">{msg.senderName}</span>
-                <span className="text-xs text-gray-500">{msg.timestamp}</span>
-              </div>
-              <div className={`rounded-lg p-3 text-sm max-w-[90%] ${msg.senderId === user?.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-800'
-                }`}>
-                {msg.text}
-              </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+          {messages.length === 0 ? (
+            <div className="text-center text-gray-400 mt-10">
+              <p className="text-sm">No messages yet.</p>
+              <p className="text-xs">Start the conversation!</p>
             </div>
-          ))}
+          ) : (
+            messages.map((msg) => (
+              <div key={msg.id} className={`flex flex-col ${msg.senderId === user?.id ? 'items-end' : 'items-start'}`}>
+                <div className="flex items-center space-x-2 mb-1">
+                  <span className="text-xs font-medium text-gray-500">{msg.senderName}</span>
+                  <span className="text-[10px] text-gray-400">{msg.timestamp}</span>
+                </div>
+                <div className={`rounded-2xl px-4 py-2 text-sm max-w-[90%] shadow-sm ${msg.senderId === user?.id
+                    ? 'bg-blue-600 text-white rounded-br-none'
+                    : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
+                  }`}>
+                  {msg.text}
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
-        <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200">
+        <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white">
           <div className="flex space-x-2">
             <input
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
             />
             <button
               type="submit"
               disabled={!newMessage.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+              className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors disabled:bg-blue-300 shadow-md"
             >
-              Send
+              <MessageSquare className="h-5 w-5" />
             </button>
           </div>
         </form>
