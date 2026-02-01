@@ -28,7 +28,8 @@ import {
   Notification,
   User,
   MedicalDocument,
-  ChatMessage
+  ChatMessage,
+  ConsultationRecord
 } from '../types';
 
 // Pagination interface
@@ -563,7 +564,7 @@ export const firestoreService = {
     }
   },
 
-  async addConsultationRecord(record: any) {
+  async addConsultationRecord(record: Omit<ConsultationRecord, 'id'>) {
     try {
       const docRef = await addDoc(collection(db, 'consultationRecords'), {
         ...record,

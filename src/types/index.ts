@@ -119,6 +119,15 @@ export interface EducationalContent {
   publishedAt: string;
 }
 
+export interface PrescriptionItem {
+  id: string;
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions?: string;
+}
+
 export interface ConsultationRecord {
   id: string;
   patientId: string;
@@ -130,7 +139,7 @@ export interface ConsultationRecord {
   type: 'teleconsultation' | 'in-person';
   status: 'completed' | 'cancelled' | 'no-show';
   notes: string;
-  prescription?: string;
+  prescriptions?: PrescriptionItem[];
   followUpRequired: boolean;
   recordingUrl?: string;
   diagnosis?: string;
