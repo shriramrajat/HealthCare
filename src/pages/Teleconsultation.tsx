@@ -54,6 +54,8 @@ const Teleconsultation: React.FC = () => {
   const [activeView, setActiveView] = useState<'main' | 'schedule' | 'records' | 'settings'>('main');
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const [showPostCallModal, setShowPostCallModal] = useState(false);
   const [consultationNotes, setConsultationNotes] = useState('');
@@ -82,6 +84,10 @@ const Teleconsultation: React.FC = () => {
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isChatOpen]);
 
   const handleStartCall = () => {
     setIsInCall(true);
@@ -548,19 +554,18 @@ const Teleconsultation: React.FC = () => {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="bg-black rounded-xl overflow-hidden h-full flex flex-col">
+      <div className="flex-1 bg-black rounded-xl overflow-hidden relative flex flex-col">
         {/* Video Area */}
-        <div className="flex-1 relative">
-          <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
+        <div className="flex-1 relative overflow-hidden">
+          <div className={`grid h-full transition-all duration-300 ${isChatOpen ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
             {/* Remote Video */}
             <motion.div
-              className="relative bg-gray-800 flex items-center justify-center"
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
+              className="relative bg-gray-800 flex items-center justify-center h-full"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
             >
               <motion.div
-                className="w-48 h-48 bg-green-500 rounded-full flex items-center justify-center"
+                className="w-32 h-32 md:w-48 md:h-48 bg-green-500 rounded-full flex items-center justify-center"
                 animate={{
                   scale: [1, 1.05, 1],
                   boxShadow: [
@@ -571,193 +576,226 @@ const Teleconsultation: React.FC = () => {
                 }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <span className="text-white text-4xl font-bold">
+                <span className="text-white text-2xl md:text-4xl font-bold">
                   {remoteInitials}
                 </span>
               </motion.div>
-              <motion.div
-                className="absolute top-4 left-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-              >
+              <div className="absolute top-4 left-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
                 {remoteName}
-              </motion.div>
+              </div>
             </motion.div>
 
-            {/* Local Video */}
+            {/* Local Video - Hide on mobile if showing chat, or make small? Let's hide local on mobile if chat is open to save space, or just stack. 
+                Actually, simpler: Just keep the grid responsive. 
+            */}
             <motion.div
-              className="relative bg-gray-900 flex items-center justify-center"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
+              className={`relative bg-gray-900 flex items-center justify-center h-full ${isChatOpen ? 'hidden lg:flex' : 'flex'}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
             >
-              <AnimatePresence mode="wait">
-                {isVideoEnabled ? (
-                  <motion.div
-                    key="local-video-on"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="w-48 h-48 bg-blue-500 rounded-full flex items-center justify-center"
-                  >
-                    <span className="text-white text-4xl font-bold">
-                      {user?.name?.charAt(0) || 'U'}
-                    </span>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="local-video-off"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="w-48 h-48 bg-gray-600 rounded-full flex items-center justify-center"
-                  >
-                    <VideoOff className="h-24 w-24 text-gray-400" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <motion.div
-                className="absolute top-4 left-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
+              {isVideoEnabled ? (
+                <div className="w-32 h-32 md:w-48 md:h-48 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-2xl md:text-4xl font-bold">
+                    {user?.name?.charAt(0) || 'U'}
+                  </span>
+                </div>
+              ) : (
+                <div className="w-32 h-32 md:w-48 md:h-48 bg-gray-600 rounded-full flex items-center justify-center">
+                  <VideoOff className="h-16 w-16 md:h-24 md:w-24 text-gray-400" />
+                </div>
+              )}
+              <div className="absolute top-4 left-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
                 You
-              </motion.div>
+              </div>
             </motion.div>
           </div>
 
           {/* Call Duration */}
-          <motion.div
-            className="absolute top-4 right-4 bg-black bg-opacity-50 text-white px-4 py-2 rounded-full"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-          >
+          <div className="absolute top-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 md:px-4 md:py-2 rounded-full text-xs md:text-sm z-10">
             <div className="flex items-center space-x-2">
-              <motion.div
-                className="w-2 h-2 bg-red-500 rounded-full"
-                animate={{ opacity: [1, 0.3, 1] }}
-                transition={{ duration: 1, repeat: Infinity }}
-              />
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               <span className="font-mono">{formatDuration(callDuration)}</span>
             </div>
-          </motion.div>
+          </div>
+
+          {/* Mobile Chat Overlay */}
+          <AnimatePresence>
+            {isChatOpen && (
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="absolute inset-0 bg-white z-20 md:hidden flex flex-col"
+              >
+                <div className="p-3 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                  <h3 className="font-semibold text-gray-900 flex items-center">
+                    <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
+                    Chat
+                  </h3>
+                  <button onClick={() => setIsChatOpen(false)} className="p-1 rounded-full hover:bg-gray-200">
+                    <Plus className="h-6 w-6 transform rotate-45 text-gray-500" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                  {messages.map((msg) => (
+                    <div key={msg.id} className={`flex flex-col ${msg.senderId === user?.id ? 'items-end' : 'items-start'}`}>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="text-xs font-medium text-gray-500">{msg.senderName}</span>
+                        <span className="text-[10px] text-gray-400">{msg.timestamp}</span>
+                      </div>
+                      <div className={`rounded-2xl px-4 py-2 text-sm max-w-[85%] shadow-sm ${msg.senderId === user?.id
+                        ? 'bg-blue-600 text-white rounded-br-none'
+                        : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
+                        }`}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200 bg-white">
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Type a message..."
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newMessage.trim()}
+                      className="p-2 bg-blue-600 text-white rounded-full disabled:bg-blue-300"
+                    >
+                      <MessageSquare className="h-5 w-5" />
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Controls */}
-        <motion.div
-          className="bg-gray-900 p-6"
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <div className="flex items-center justify-center space-x-6">
+        <div className="bg-gray-900 p-4 md:p-6 z-30">
+          <div className="flex items-center justify-center space-x-4 md:space-x-6">
             <AnimatedButton
               onClick={() => setIsAudioEnabled(!isAudioEnabled)}
               variant={isAudioEnabled ? "secondary" : "danger"}
-              size="lg"
-              className="p-4 rounded-full"
-              title={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+              className="p-3 md:p-4 rounded-full"
             >
-              {isAudioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+              {isAudioEnabled ? <Mic className="h-5 w-5 md:h-6 md:w-6" /> : <MicOff className="h-5 w-5 md:h-6 md:w-6" />}
             </AnimatedButton>
 
             <AnimatedButton
               onClick={() => setIsVideoEnabled(!isVideoEnabled)}
               variant={isVideoEnabled ? "secondary" : "danger"}
-              size="lg"
-              className="p-4 rounded-full"
-              title={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+              className="p-3 md:p-4 rounded-full"
             >
-              {isVideoEnabled ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
+              {isVideoEnabled ? <Video className="h-5 w-5 md:h-6 md:w-6" /> : <VideoOff className="h-5 w-5 md:h-6 md:w-6" />}
             </AnimatedButton>
 
-            <AnimatedButton
-              onClick={() => setIsScreenSharing(!isScreenSharing)}
-              variant={isScreenSharing ? "primary" : "secondary"}
-              size="lg"
-              className="p-4 rounded-full"
-              title={isScreenSharing ? 'Stop screen sharing' : 'Share screen'}
-            >
-              <Monitor className="h-6 w-6" />
-            </AnimatedButton>
+            {/* Desktop Screen Share - Hidden on Mobile */}
+            <div className="hidden md:block">
+              <AnimatedButton
+                onClick={() => setIsScreenSharing(!isScreenSharing)}
+                variant={isScreenSharing ? "primary" : "secondary"}
+                className="p-3 md:p-4 rounded-full"
+              >
+                <Monitor className="h-5 w-5 md:h-6 md:w-6" />
+              </AnimatedButton>
+            </div>
 
             <AnimatedButton
-              variant="secondary"
-              size="lg"
-              className="p-4 rounded-full"
-              title="Chat"
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              variant={isChatOpen ? "primary" : "secondary"}
+              className="p-3 md:p-4 rounded-full relative"
             >
-              <MessageSquare className="h-6 w-6" />
+              <MessageSquare className="h-5 w-5 md:h-6 md:w-6" />
+              {messages.length > 0 && !isChatOpen && (
+                <span className="absolute top-0 right-0 h-3 w-3 bg-red-500 rounded-full border-2 border-gray-900"></span>
+              )}
             </AnimatedButton>
 
             <AnimatedButton
               onClick={handleEndCall}
               variant="danger"
-              size="lg"
-              className="p-4 rounded-full"
-              title="End call"
+              className="p-3 md:p-4 rounded-full"
             >
-              <Phone className="h-6 w-6 transform rotate-135" />
+              <Phone className="h-5 w-5 md:h-6 md:w-6 transform rotate-135" />
             </AnimatedButton>
           </div>
-        </motion.div>
+        </div>
       </div>
 
-      {/* Chat Sidebar */}
-      <div className="hidden md:flex fixed right-0 top-0 h-full w-80 bg-white border-l border-gray-200 flex-col z-20">
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <h3 className="font-semibold text-gray-900 flex items-center">
-            <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
-            Consultation Chat
-          </h3>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-          {messages.length === 0 ? (
-            <div className="text-center text-gray-400 mt-10">
-              <p className="text-sm">No messages yet.</p>
-              <p className="text-xs">Start the conversation!</p>
+      {/* Desktop Chat Sidebar */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 320, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            className="hidden md:flex bg-white border-l border-gray-200 flex-col overflow-hidden"
+          >
+            <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center min-w-[320px]">
+              <h3 className="font-semibold text-gray-900 flex items-center">
+                <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
+                Consultation Chat
+              </h3>
+              <button onClick={() => setIsChatOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <Plus className="h-5 w-5 transform rotate-45" />
+              </button>
             </div>
-          ) : (
-            messages.map((msg) => (
-              <div key={msg.id} className={`flex flex-col ${msg.senderId === user?.id ? 'items-end' : 'items-start'}`}>
-                <div className="flex items-center space-x-2 mb-1">
-                  <span className="text-xs font-medium text-gray-500">{msg.senderName}</span>
-                  <span className="text-[10px] text-gray-400">{msg.timestamp}</span>
-                </div>
-                <div className={`rounded-2xl px-4 py-2 text-sm max-w-[90%] shadow-sm ${msg.senderId === user?.id
-                    ? 'bg-blue-600 text-white rounded-br-none'
-                    : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
-                  }`}>
-                  {msg.text}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
 
-        <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white">
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type a message..."
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-            />
-            <button
-              type="submit"
-              disabled={!newMessage.trim()}
-              className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors disabled:bg-blue-300 shadow-md"
-            >
-              <MessageSquare className="h-5 w-5" />
-            </button>
-          </div>
-        </form>
-      </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 min-w-[320px]">
+              {messages.length === 0 ? (
+                <div className="text-center text-gray-400 mt-10">
+                  <p className="text-sm">No messages yet.</p>
+                  <p className="text-xs">Start the conversation!</p>
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <div key={msg.id} className={`flex flex-col ${msg.senderId === user?.id ? 'items-end' : 'items-start'}`}>
+                    <div className="flex items-center space-x-2 mb-1">
+                      <span className="text-xs font-medium text-gray-500">{msg.senderName}</span>
+                      <span className="text-[10px] text-gray-400">{msg.timestamp}</span>
+                    </div>
+                    <div className={`rounded-2xl px-4 py-2 text-sm max-w-[90%] shadow-sm ${msg.senderId === user?.id
+                      ? 'bg-blue-600 text-white rounded-br-none'
+                      : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
+                      }`}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white min-w-[320px]">
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={!newMessage.trim()}
+                  className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors disabled:bg-blue-300 shadow-md"
+                >
+                  <MessageSquare className="h-5 w-5" />
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
