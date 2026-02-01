@@ -449,6 +449,19 @@ export const firestoreService = {
     }
   },
 
+  async addEducationalContent(content: Omit<EducationalContent, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, COLLECTIONS.EDUCATIONAL_CONTENT), {
+        ...content,
+        publishedAt: Timestamp.fromDate(new Date(content.publishedAt))
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding educational content:', error);
+      throw error;
+    }
+  },
+
   // Notifications
   async getNotifications(userId: string): Promise<Notification[]> {
     try {
