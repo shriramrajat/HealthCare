@@ -57,6 +57,39 @@ const COLLECTIONS = {
 };
 
 export const firestoreService = {
+  // Admin: Get Pending Doctors
+  async getPendingDoctors(): Promise<User[]> {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.USERS),
+        where('role', '==', 'doctor'),
+        // where('verified', '==', false) // Note: If confirmed field is missing, it might not return. simpler to filter client side or check how users are created.
+        // Let's assume verified is either false or undefined.
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as User))
+        .filter(user => !user.verified); // Filter client-side to catch undefined
+    } catch (error) {
+      console.error('Error fetching pending doctors:', error);
+      throw error;
+    }
+  },
+
+  // Admin: Verify Doctor
+  async verifyDoctor(userId: string) {
+    try {
+      const userRef = doc(db, COLLECTIONS.USERS, userId);
+      await updateDoc(userRef, {
+        verified: true,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error verifying doctor:', error);
+      throw error;
+    }
+  },
+
   // Health Metrics
   async getHealthMetrics(userId: string, options?: PaginationOptions): Promise<PaginatedResult<HealthMetric>> {
     try {

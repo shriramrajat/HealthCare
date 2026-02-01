@@ -2,11 +2,12 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'patient' | 'doctor';
+  role: 'patient' | 'doctor' | 'admin';
   phone?: string;
   specialization?: string; // for doctors
   conditions?: string[]; // for patients
   avatar?: string;
+  verified?: boolean;
 }
 
 export interface AuthContextType {
