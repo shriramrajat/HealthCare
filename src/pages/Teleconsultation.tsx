@@ -687,7 +687,48 @@ const Teleconsultation: React.FC = () => {
         </motion.div>
       </div>
 
-      {/* Chat Sidebar (Hidden by default, could be toggled) */}
+  // Chat State
+      const [messages, setMessages] = useState<ChatMessage[]>([]);
+      const [newMessage, setNewMessage] = useState('');
+      const consultationId = appointment?.id || 'demo-consultation-id';
+
+  // Subscribe to chat messages
+  useEffect(() => {
+    const unsubscribe = firestoreService.subscribeToChat(consultationId, (newMessages) => {
+        setMessages(newMessages);
+    });
+    return () => unsubscribe();
+  }, [consultationId]);
+
+  // ... existing code ...
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+      if (newMessage.trim() && user) {
+      try {
+        await firestoreService.sendMessage({
+          consultationId,
+          senderId: user.id,
+          senderName: user.name,
+          text: newMessage,
+          role: user.role,
+          timestamp: new Date().toISOString() // will be replaced by serverTimestamp
+        } as any); // using as any to bypass local timestamp vs serverTimestamp type mismatch usually handled
+      setNewMessage('');
+      } catch (error) {
+        console.error('Failed to send message:', error);
+      addNotification({
+        title: 'Error',
+      message: 'Failed to send message',
+      type: 'error'
+        });
+      }
+    }
+  };
+
+      // ... existing code ...
+
+      {/* Chat Sidebar */}
       <div className="hidden fixed right-0 top-0 h-full w-80 bg-white border-l border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-200">
           <h3 className="font-semibold text-gray-900">Chat</h3>
@@ -695,13 +736,16 @@ const Teleconsultation: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg) => (
-            <div key={msg.id} className="space-y-1">
+            <div key={msg.id} className={`space-y-1 ${msg.senderId === user?.id ? 'items-end flex flex-col' : ''}`}>
               <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-gray-900">{msg.sender}</span>
-                <span className="text-xs text-gray-500">{msg.time}</span>
+                <span className="text-sm font-medium text-gray-900">{msg.senderName}</span>
+                <span className="text-xs text-gray-500">{msg.timestamp}</span>
               </div>
-              <div className="bg-gray-100 rounded-lg p-3 text-sm">
-                {msg.message}
+              <div className={`rounded-lg p-3 text-sm max-w-[90%] ${msg.senderId === user?.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-800'
+                }`}>
+                {msg.text}
               </div>
             </div>
           ))}
@@ -718,7 +762,8 @@ const Teleconsultation: React.FC = () => {
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={!newMessage.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
             >
               Send
             </button>
