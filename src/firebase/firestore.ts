@@ -14,6 +14,7 @@ import {
   Timestamp,
   addDoc,
   serverTimestamp,
+  onSnapshot,
   DocumentData
 } from 'firebase/firestore';
 import { db } from './config';
@@ -26,7 +27,8 @@ import {
   EducationalContent,
   Notification,
   User,
-  MedicalDocument
+  MedicalDocument,
+  ChatMessage
 } from '../types';
 
 // Pagination interface
@@ -628,5 +630,35 @@ export const firestoreService = {
       console.error('Error fetching medical documents:', error);
       throw error;
     }
+  },
+
+  // --- Chat Functionality ---
+
+  async sendMessage(messageData: Omit<ChatMessage, 'id'>) {
+    try {
+      await addDoc(collection(db, `consultations/${messageData.consultationId}/messages`), {
+        ...messageData,
+        timestamp: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  },
+
+  subscribeToChat(consultationId: string, callback: (messages: ChatMessage[]) => void) {
+    const q = query(
+      collection(db, `consultations/${consultationId}/messages`),
+      orderBy('timestamp', 'asc')
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      const messages = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || 'Just now'
+      } as ChatMessage));
+      callback(messages);
+    });
   }
 };
