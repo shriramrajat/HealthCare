@@ -20,6 +20,7 @@ import { firestoreService } from '../../firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { ConsultationRecord } from '../../types';
 import AnimatedButton from '../ui/AnimatedButton';
+import { generatePrescriptionPDF } from '../../utils/pdfGenerator';
 
 interface ConsultationRecordsProps {
   className?: string;
@@ -384,10 +385,7 @@ const ConsultationRecords: React.FC<ConsultationRecordsProps> = ({ className = '
                               <AnimatedButton
                                 variant="secondary"
                                 size="sm"
-                                onClick={() => {
-                                  // Implement download functionality
-                                  console.log('Download record:', record.id);
-                                }}
+                                onClick={() => generatePrescriptionPDF(record)}
                               >
                                 <Download className="h-4 w-4 mr-1" />
                                 Download
