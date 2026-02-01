@@ -16,9 +16,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDoctorDashboardData } from '../hooks/useDoctorDashboardData';
 import { useNotifications } from '../contexts/NotificationContext';
 import AppointmentCard from '../components/AppointmentCard';
+import { useNavigate } from 'react-router-dom';
 
 const DoctorDashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { addNotification } = useNotifications();
   const {
     appointments,
@@ -66,13 +68,17 @@ const DoctorDashboard: React.FC = () => {
   };
 
   const handleJoinCall = (appointmentId: string) => {
+    const appointment = appointments.find(a => a.id === appointmentId);
+
     console.log('Joining call for appointment:', appointmentId);
     addNotification({
       title: 'Joining Call',
       message: 'Redirecting to secure video room...',
       type: 'info',
     });
-    // Video implementation pending
+
+    // Navigate to the video room and pass the appointment details
+    navigate('/teleconsultation', { state: { appointment } });
   };
 
   if (loading) {

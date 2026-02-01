@@ -142,12 +142,15 @@ const Appointments: React.FC = () => {
   };
 
   const handleJoinCall = (appointmentId: string) => {
+    const appointment = appointments.find(a => a.id === appointmentId);
     addNotification({
       title: 'Joining Teleconsultation',
       message: 'Redirecting to video call...',
       type: 'info'
     });
-    navigate('/teleconsultation');
+
+    // Pass the appointment state here too
+    navigate('/teleconsultation', { state: { appointment } });
   };
 
   const getStatusStats = () => {
