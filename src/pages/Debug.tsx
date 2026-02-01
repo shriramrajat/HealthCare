@@ -4,49 +4,50 @@ import { signInWithEmailAndPassword, fetchSignInMethodsForEmail } from 'firebase
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 
-const AdminPromoter = ({ log }: { log: (msg: string) => void }) => {
+const QuickAdminButton = ({ log }: { log: (msg: string) => void }) => {
     const { user, updateProfile } = useAuth();
 
-    const handlePromote = async () => {
+    const grantAdminAccess = async () => {
         if (!user) {
-            log('❌ No user logged in');
+            log('❌ Not logged in - can\'t promote');
             return;
         }
         try {
-            await updateProfile({ role: 'admin' as any }); // Cast as any because role might be restrictive in some types, but we updated index.ts
-            log(`✅ User ${user.email} promoted to ADMIN!`);
-            log('⚠️ Note: You may need to refresh the page/re-login for claims to fully propagate if strict.');
-        } catch (e: any) {
-            log(`❌ Promotion failed: ${e.message}`);
+            // Force update to admin role
+            await updateProfile({ role: 'admin' as any });
+            log(`✅ ${user.email} is now an ADMIN`);
+            log('⚠️ Refresh page if role doesn\'t update immediately');
+        } catch (err: any) {
+            log(`❌ Failed to promote: ${err.message}`);
         }
     };
 
     return (
-        <button onClick={handlePromote} className="bg-red-600 text-white px-4 py-2 rounded">
-            Make Me Admin
+        <button onClick={grantAdminAccess} className="bg-red-600 text-white px-4 py-2 rounded">
+            Grant Admin Role
         </button>
     );
 };
 
-const NotificationTester = ({ log }: { log: (msg: string) => void }) => {
+const NotificationTestButton = ({ log }: { log: (msg: string) => void }) => {
     const { addSystemNotification } = useNotifications();
 
-    const handleTest = async () => {
+    const sendTestNotif = async () => {
         try {
             await addSystemNotification({
-                title: 'Test Notification',
-                message: 'This is a test notification from the debug page.',
+                title: 'Debug Test',
+                message: 'Testing notification system from debug panel.',
                 type: 'info'
             });
-            log('✅ Notification sent!');
-        } catch (e: any) {
-            log(`❌ Notification failed: ${e.message}`);
+            log('✅ Test notification dispatched');
+        } catch (err: any) {
+            log(`❌ Notification error: ${err.message}`);
         }
     };
 
     return (
-        <button onClick={handleTest} className="bg-purple-600 text-white px-4 py-2 rounded">
-            Test Notification
+        <button onClick={sendTestNotif} className="bg-purple-600 text-white px-4 py-2 rounded">
+            Send Test Alert
         </button>
     );
 };
@@ -57,7 +58,7 @@ const DebugPage: React.FC = () => {
     const [logs, setLogs] = useState<string[]>([]);
     const [configStatus, setConfigStatus] = useState<any>({});
 
-    const addLog = (msg: string) => setLogs(prev => [...prev, `${new Date().toISOString().split('T')[1].slice(0, 8)}: ${msg}`]);
+    const logMessage = (msg: string) => setLogs(prev => [...prev, `${new Date().toISOString().split('T')[1].slice(0, 8)}: ${msg}`]);
 
     useEffect(() => {
         // Check config loading
@@ -68,27 +69,27 @@ const DebugPage: React.FC = () => {
             projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
             authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
         });
-        addLog('Debug component mounted.');
+        logMessage('Debug component mounted.');
     }, []);
 
     const testLogin = async () => {
         try {
-            addLog(`Attempting login for ${email}...`);
+            logMessage(`Attempting login for ${email}...`);
             const cred = await signInWithEmailAndPassword(auth, email, password);
-            addLog(`✅ Success! User UID: ${cred.user.uid}`);
+            logMessage(`✅ Success! User UID: ${cred.user.uid}`);
         } catch (e: any) {
-            addLog(`❌ Error: ${e.code} - ${e.message}`);
+            logMessage(`❌ Error: ${e.code} - ${e.message}`);
             console.error(e);
         }
     };
 
     const checkProviders = async () => {
         try {
-            addLog(`Checking providers for ${email}...`);
+            logMessage(`Checking providers for ${email}...`);
             const methods = await fetchSignInMethodsForEmail(auth, email);
-            addLog(`Methods available: ${methods.join(', ')}`);
+            logMessage(`Methods available: ${methods.join(', ')}`);
         } catch (e: any) {
-            addLog(`❌ Error checking providers: ${e.code} - ${e.message}`);
+            logMessage(`❌ Error checking providers: ${e.code} - ${e.message}`);
         }
     };
 
@@ -123,8 +124,8 @@ const DebugPage: React.FC = () => {
                     <button onClick={checkProviders} className="bg-gray-600 text-white px-4 py-2 rounded">
                         Check Providers
                     </button>
-                    <NotificationTester log={addLog} />
-                    <AdminPromoter log={addLog} />
+                    <NotificationTestButton log={logMessage} />
+                    <QuickAdminButton log={logMessage} />
                 </div>
             </div>
 
@@ -136,3 +137,4 @@ const DebugPage: React.FC = () => {
 };
 
 export default DebugPage;
+

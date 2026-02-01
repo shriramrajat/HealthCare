@@ -19,32 +19,43 @@ const DoctorTools: React.FC<DoctorToolsProps> = ({
     prescriptions,
     setPrescriptions
 }) => {
-    const [newMed, setNewMed] = useState<Partial<PrescriptionItem>>({
+    // Track the medication being typed in the form
+    const [medicationDraft, setMedicationDraft] = useState<Partial<PrescriptionItem>>({
         name: '',
         dosage: '',
         frequency: '',
         duration: ''
     });
 
-    const handleAddMedication = () => {
-        if (newMed.name && newMed.dosage && newMed.frequency) {
-            setPrescriptions([
-                ...prescriptions,
-                {
-                    id: Math.random().toString(36).substr(2, 9),
-                    name: newMed.name,
-                    dosage: newMed.dosage,
-                    frequency: newMed.frequency,
-                    duration: newMed.duration || '7 days',
-                    instructions: newMed.instructions || ''
-                } as PrescriptionItem
-            ]);
-            setNewMed({ name: '', dosage: '', frequency: '', duration: '', instructions: '' });
-        }
+    const addMedicationToList = () => {
+        const { name, dosage, frequency, duration, instructions } = medicationDraft;
+
+        // Basic validation - need at least name, dosage, and frequency
+        if (!name || !dosage || !frequency) return;
+
+        const newPrescription: PrescriptionItem = {
+            id: `rx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            name: name.trim(),
+            dosage: dosage.trim(),
+            frequency: frequency.trim(),
+            duration: duration?.trim() || '7 days',
+            instructions: instructions?.trim() || ''
+        };
+
+        setPrescriptions([...prescriptions, newPrescription]);
+
+        // Clear the form
+        setMedicationDraft({
+            name: '',
+            dosage: '',
+            frequency: '',
+            duration: '',
+            instructions: ''
+        });
     };
 
-    const removeMedication = (id: string) => {
-        setPrescriptions(prescriptions.filter(p => p.id !== id));
+    const deleteMedication = (medId: string) => {
+        setPrescriptions(prescriptions.filter(rx => rx.id !== medId));
     };
 
     return (
@@ -52,7 +63,7 @@ const DoctorTools: React.FC<DoctorToolsProps> = ({
             <div className="p-4 border-b border-gray-200 bg-gray-50">
                 <h3 className="font-semibold text-gray-900 flex items-center">
                     <Activity className="h-5 w-5 mr-2 text-blue-600" />
-                    Doctor Consultation Tools
+                    Medical Notes & Prescriptions
                 </h3>
             </div>
 
@@ -61,14 +72,14 @@ const DoctorTools: React.FC<DoctorToolsProps> = ({
                 <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
                         <Activity className="h-4 w-4 mr-1 text-blue-500" />
-                        Diagnosis
+                        Primary Diagnosis
                     </label>
                     <input
                         type="text"
                         value={diagnosis}
                         onChange={(e) => setDiagnosis(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="e.g. Acute Viral Bronchitis"
+                        placeholder="e.g., Upper Respiratory Infection"
                     />
                 </div>
 
@@ -76,14 +87,14 @@ const DoctorTools: React.FC<DoctorToolsProps> = ({
                 <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
                         <FileText className="h-4 w-4 mr-1 text-blue-500" />
-                        Clinical Notes
+                        Consultation Notes
                     </label>
                     <textarea
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         rows={6}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        placeholder="Patient presented with..."
+                        placeholder="Patient history, symptoms, examination findings..."
                     />
                 </div>
 
@@ -92,45 +103,45 @@ const DoctorTools: React.FC<DoctorToolsProps> = ({
                     <div className="flex items-center justify-between">
                         <label className="block text-sm font-medium text-gray-700 flex items-center">
                             <Pill className="h-4 w-4 mr-1 text-blue-500" />
-                            Prescription
+                            Medications
                         </label>
                     </div>
 
                     {/* Add Medication Form */}
                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-3">
                         <input
-                            placeholder="Medication Name (e.g. Amoxicillin)"
-                            value={newMed.name}
-                            onChange={e => setNewMed({ ...newMed, name: e.target.value })}
+                            placeholder="Drug name (e.g., Ibuprofen)"
+                            value={medicationDraft.name}
+                            onChange={e => setMedicationDraft({ ...medicationDraft, name: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                         />
                         <div className="grid grid-cols-2 gap-2">
                             <input
-                                placeholder="Dosage (e.g. 500mg)"
-                                value={newMed.dosage}
-                                onChange={e => setNewMed({ ...newMed, dosage: e.target.value })}
+                                placeholder="Strength (e.g., 400mg)"
+                                value={medicationDraft.dosage}
+                                onChange={e => setMedicationDraft({ ...medicationDraft, dosage: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                             />
                             <input
-                                placeholder="Freq (e.g. 3x daily)"
-                                value={newMed.frequency}
-                                onChange={e => setNewMed({ ...newMed, frequency: e.target.value })}
+                                placeholder="How often (e.g., TID)"
+                                value={medicationDraft.frequency}
+                                onChange={e => setMedicationDraft({ ...medicationDraft, frequency: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                             />
                         </div>
                         <input
-                            placeholder="Duration (e.g. 5 days)"
-                            value={newMed.duration}
-                            onChange={e => setNewMed({ ...newMed, duration: e.target.value })}
+                            placeholder="Treatment length (e.g., 10 days)"
+                            value={medicationDraft.duration}
+                            onChange={e => setMedicationDraft({ ...medicationDraft, duration: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                         />
                         <button
-                            onClick={handleAddMedication}
-                            disabled={!newMed.name || !newMed.dosage}
+                            onClick={addMedicationToList}
+                            disabled={!medicationDraft.name || !medicationDraft.dosage}
                             className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300"
                         >
                             <Plus className="h-4 w-4 mr-2" />
-                            Add Medication
+                            Add to Prescription
                         </button>
                     </div>
 
@@ -143,7 +154,7 @@ const DoctorTools: React.FC<DoctorToolsProps> = ({
                                     <p className="text-xs text-gray-500">{med.frequency} for {med.duration}</p>
                                 </div>
                                 <button
-                                    onClick={() => removeMedication(med.id)}
+                                    onClick={() => deleteMedication(med.id)}
                                     className="text-gray-400 hover:text-red-500 p-1"
                                 >
                                     <Trash2 className="h-4 w-4" />
