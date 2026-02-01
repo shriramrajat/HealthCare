@@ -1,6 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from '../firebase/config';
 import { signInWithEmailAndPassword, fetchSignInMethodsForEmail } from 'firebase/auth';
+import { useNotifications } from '../contexts/NotificationContext';
+
+const NotificationTester = ({ log }: { log: (msg: string) => void }) => {
+    const { addSystemNotification } = useNotifications();
+
+    const handleTest = async () => {
+        try {
+            await addSystemNotification({
+                title: 'Test Notification',
+                message: 'This is a test notification from the debug page.',
+                type: 'info'
+            });
+            log('✅ Notification sent!');
+        } catch (e: any) {
+            log(`❌ Notification failed: ${e.message}`);
+        }
+    };
+
+    return (
+        <button onClick={handleTest} className="bg-purple-600 text-white px-4 py-2 rounded">
+            Test Notification
+        </button>
+    );
+};
 
 const DebugPage: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -74,6 +98,7 @@ const DebugPage: React.FC = () => {
                     <button onClick={checkProviders} className="bg-gray-600 text-white px-4 py-2 rounded">
                         Check Providers
                     </button>
+                    <NotificationTester log={addLog} />
                 </div>
             </div>
 
