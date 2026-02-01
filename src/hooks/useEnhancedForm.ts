@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { isRetryableError } from '../utils/errorHandling';
 
 interface UseEnhancedFormOptions<T> {
   onSubmit: (data: T) => Promise<void>;
@@ -24,7 +25,7 @@ export function useEnhancedForm<T>({
 }: UseEnhancedFormOptions<T>): UseEnhancedFormReturn<T> {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  
+
   // Store the last submission data for retry
   const lastSubmissionData = useRef<T | null>(null);
   const submissionInProgress = useRef(false);
@@ -33,39 +34,39 @@ export function useEnhancedForm<T>({
     async (data: T, attemptNumber: number = 0): Promise<void> => {
       try {
         await onSubmit(data);
-        
+
         // Success - reset state
         setError(null);
         lastSubmissionData.current = null;
-        
+
         if (onSuccess) {
           onSuccess();
         }
       } catch (err) {
         const error = err instanceof Error ? err : new Error('Submission failed');
-        
+
         // Check if we should retry
-        if (attemptNumber < MAX_RETRIES) {
+        if (attemptNumber < MAX_RETRIES && isRetryableError(error)) {
           const delay = RETRY_DELAYS[attemptNumber];
-          
+
           console.log(
             `Submission failed (attempt ${attemptNumber + 1}/${MAX_RETRIES + 1}). Retrying in ${delay}ms...`,
             error
           );
-          
+
           // Wait for the delay before retrying
           await new Promise(resolve => setTimeout(resolve, delay));
-          
+
           // Retry the submission
           return executeSubmission(data, attemptNumber + 1);
         } else {
-          // Max retries reached - set error state
+          // Max retries reached or not retryable - set error state
           setError(error);
-          
+
           if (onError) {
             onError(error);
           }
-          
+
           throw error;
         }
       }
@@ -85,10 +86,10 @@ export function useEnhancedForm<T>({
         submissionInProgress.current = true;
         setIsSubmitting(true);
         setError(null);
-        
+
         // Store data for potential retry
         lastSubmissionData.current = data;
-        
+
         await executeSubmission(data, 0);
       } finally {
         setIsSubmitting(false);
@@ -113,7 +114,7 @@ export function useEnhancedForm<T>({
       submissionInProgress.current = true;
       setIsSubmitting(true);
       setError(null);
-      
+
       await executeSubmission(lastSubmissionData.current, 0);
     } finally {
       setIsSubmitting(false);

@@ -5,7 +5,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 export const testFirebaseConnection = async () => {
   console.log('🔥 Testing Firebase connection...');
-  
+
   try {
     // Test Auth connection
     console.log('Testing Firebase Auth...');
@@ -15,9 +15,9 @@ export const testFirebaseConnection = async () => {
         resolve(user ? 'Authenticated' : 'Not authenticated');
       });
     });
-    
+
     console.log('✅ Firebase Auth initialized successfully');
-    
+
     // Test Firestore connection
     console.log('Testing Firestore...');
     const testDocRef = doc(db, 'test', 'connection');
@@ -25,23 +25,23 @@ export const testFirebaseConnection = async () => {
       message: 'Hello Firebase!',
       timestamp: new Date().toISOString()
     });
-    
+
     const docSnap = await getDoc(testDocRef);
     if (docSnap.exists()) {
       console.log('✅ Firestore connection successful:', docSnap.data());
     } else {
       console.log('❌ Firestore test document not found');
     }
-    
+
     // Clean up test document
     await setDoc(testDocRef, {
       message: 'Test completed',
       timestamp: new Date().toISOString()
     });
-    
+
     console.log('🎉 Firebase connection test completed successfully!');
     return true;
-    
+
   } catch (error) {
     console.error('❌ Firebase connection test failed:', error);
     return false;
@@ -49,6 +49,7 @@ export const testFirebaseConnection = async () => {
 };
 
 // Auto-run test when imported (for development)
-if (import.meta.env.DEV) {
-  testFirebaseConnection();
-}
+// Auto-run test when imported (for development)
+// if (import.meta.env.DEV) {
+//   testFirebaseConnection();
+// }

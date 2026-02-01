@@ -5,14 +5,39 @@ import { getStorage } from 'firebase/storage';
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCphOBZ4zfZLqGWg33YTgk3bVofi1vKqlU",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "optimal-timer-466116-u0.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "optimal-timer-466116-u0",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "optimal-timer-466116-u0.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "293836082393",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:293836082393:web:ee993906afa762e5a082c8",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-C17Q3C5WGY"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
+
+console.log('Firebase Config Loaded:', {
+  apiKey: firebaseConfig.apiKey ? '***' + firebaseConfig.apiKey.slice(-5) : 'MISSING',
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId
+});
+
+// Validate required configuration
+const requiredKeys = [
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'storageBucket',
+  'messagingSenderId',
+  'appId'
+] as const;
+
+const missingKeys = requiredKeys.filter(key => !firebaseConfig[key]);
+
+if (missingKeys.length > 0) {
+  throw new Error(
+    `Missing required Firebase configuration keys: ${missingKeys.join(', ')}. ` +
+    'Please check your .env file.'
+  );
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

@@ -3,13 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useRoutePreload } from '../hooks/useRoutePreload';
-import { 
-  Heart, 
-  Bell, 
-  User, 
-  LogOut, 
-  Menu, 
-  X, 
+import {
+  Heart,
+  Bell,
+  User,
+  LogOut,
+  Menu,
+  X,
   Calendar,
   Pill,
   Activity,
@@ -95,11 +95,10 @@ const Header: React.FC = () => {
                   onClick={() => handleNavClick(item.path)}
                   onMouseEnter={handleMouseEnter(item.path)}
                   onFocus={handleFocus(item.path)}
-                  className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    location.pathname === item.path
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                  }`}
+                  className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === item.path
+                    ? 'text-blue-600 bg-blue-50'
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                    }`}
                 >
                   <Icon className="h-4 w-4" />
                   <span>{item.label}</span>
@@ -166,11 +165,10 @@ const Header: React.FC = () => {
                     onClick={() => handleNavClick(item.path)}
                     onMouseEnter={handleMouseEnter(item.path)}
                     onFocus={handleFocus(item.path)}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      location.pathname === item.path
-                        ? 'text-blue-600 bg-blue-50'
-                        : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                    }`}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === item.path
+                      ? 'text-blue-600 bg-blue-50'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                      }`}
                   >
                     <Icon className="h-4 w-4" />
                     <span>{item.label}</span>
@@ -195,9 +193,8 @@ const Header: React.FC = () => {
               notifications.slice(0, 5).map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-3 border-b border-gray-100 last:border-b-0 ${
-                    !notification.read ? 'bg-blue-50' : ''
-                  }`}
+                  className={`p-3 border-b border-gray-100 last:border-b-0 ${!notification.read ? 'bg-blue-50' : ''
+                    }`}
                 >
                   <p className="text-sm font-medium text-gray-900">{notification.title}</p>
                   <p className="text-xs text-gray-600 mt-1">{notification.message}</p>

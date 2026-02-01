@@ -24,6 +24,7 @@ const Teleconsultation = lazy(() => import('./pages/Teleconsultation'));
 const Education = lazy(() => import('./pages/Education'));
 const Reviews = lazy(() => import('./pages/Reviews'));
 const DiagnosticTest = lazy(() => import('./pages/DiagnosticTest'));
+const DebugPage = lazy(() => import('./pages/Debug'));
 // Test Firebase connection in development
 if (import.meta.env.DEV) {
   import('./firebase/test-connection');
@@ -205,6 +206,14 @@ function AppContent() {
                   ) : (
                     <Navigate to="/login" />
                   )
+                }
+              />
+              <Route
+                path="/debug"
+                element={
+                  <Suspense fallback={<PageLoadingFallback />}>
+                    <DebugPage />
+                  </Suspense>
                 }
               />
 

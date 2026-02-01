@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { firestoreService } from '../firebase/firestore';
+import { storageService } from '../firebase/storage';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { CheckCircle, XCircle, AlertCircle, Loader } from 'lucide-react';
@@ -44,11 +45,16 @@ const DiagnosticTest: React.FC = () => {
     // Test 2: Test Firestore Connection
     updateTest('Firestore Connection', 'pending', 'Testing Firestore connection...');
     try {
-      const testRef = await addDoc(collection(db, 'test'), {
-        message: 'Connection test',
-        timestamp: new Date().toISOString()
+      // Instead of writing to a restricted 'test' collection, we'll update the user's own document
+      // which is allowed by rules
+      const { doc, updateDoc } = await import('firebase/firestore');
+      const userRef = doc(db, 'users', user.id);
+
+      await updateDoc(userRef, {
+        lastDiagnosticRun: new Date().toISOString()
       });
-      updateTest('Firestore Connection', 'success', 'Firestore connection successful', `Test doc ID: ${testRef.id}`);
+
+      updateTest('Firestore Connection', 'success', 'Firestore connection successful', `Updated user doc: ${user.id}`);
     } catch (error: any) {
       updateTest('Firestore Connection', 'error', 'Firestore connection failed', error.message);
     }
@@ -65,10 +71,10 @@ const DiagnosticTest: React.FC = () => {
       };
       const metricId = await firestoreService.addHealthMetric(metricData);
       updateTest('Health Metrics', 'success', 'Health metric added successfully', `Metric ID: ${metricId}`);
-      
+
       // Try to read it back
       const metrics = await firestoreService.getHealthMetrics(user.id);
-      updateTest('Health Metrics Read', 'success', `Retrieved ${metrics.length} health metrics`);
+      updateTest('Health Metrics Read', 'success', `Retrieved ${metrics.data.length} health metrics`);
     } catch (error: any) {
       updateTest('Health Metrics', 'error', 'Failed to add health metric', `${error.code}: ${error.message}`);
     }
@@ -87,10 +93,10 @@ const DiagnosticTest: React.FC = () => {
       };
       const medId = await firestoreService.addMedication(medicationData);
       updateTest('Medications', 'success', 'Medication added successfully', `Medication ID: ${medId}`);
-      
+
       // Try to read it back
       const medications = await firestoreService.getMedications(user.id);
-      updateTest('Medications Read', 'success', `Retrieved ${medications.length} medications`);
+      updateTest('Medications Read', 'success', `Retrieved ${medications.data.length} medications`);
     } catch (error: any) {
       updateTest('Medications', 'error', 'Failed to add medication', `${error.code}: ${error.message}`);
     }
@@ -107,10 +113,10 @@ const DiagnosticTest: React.FC = () => {
       };
       const symptomId = await firestoreService.addSymptom(symptomData);
       updateTest('Symptoms', 'success', 'Symptom added successfully', `Symptom ID: ${symptomId}`);
-      
+
       // Try to read it back
       const symptoms = await firestoreService.getSymptoms(user.id);
-      updateTest('Symptoms Read', 'success', `Retrieved ${symptoms.length} symptoms`);
+      updateTest('Symptoms Read', 'success', `Retrieved ${symptoms.data.length} symptoms`);
     } catch (error: any) {
       updateTest('Symptoms', 'error', 'Failed to add symptom', `${error.code}: ${error.message}`);
     }
@@ -128,7 +134,7 @@ const DiagnosticTest: React.FC = () => {
       };
       const notifId = await firestoreService.addNotification(notificationData);
       updateTest('Notifications', 'success', 'Notification added successfully', `Notification ID: ${notifId}`);
-      
+
       // Try to read it back
       const notifications = await firestoreService.getNotifications(user.id);
       updateTest('Notifications Read', 'success', `Retrieved ${notifications.length} notifications`);
@@ -147,6 +153,28 @@ const DiagnosticTest: React.FC = () => {
       } else {
         updateTest('Firestore Rules', 'error', 'Error checking rules', error.message);
       }
+    }
+
+
+
+    // Test 8: Test Storage
+    updateTest('Storage', 'pending', 'Testing storage...');
+    try {
+      const blob = new Blob(['Diagnostic test file content'], { type: 'text/plain' });
+      const testFile = new File([blob], 'diagnostic-test.txt', { type: 'text/plain' });
+      const path = `diagnostics/${user.id}/test-${Date.now()}.txt`;
+
+      const url = await storageService.uploadFile(testFile, path);
+      updateTest('Storage', 'success', 'File upload successful', `URL: ${url.substring(0, 50)}...`);
+
+      // Attempt cleanup (optional, but good for hygiene)
+      try {
+        await storageService.deleteFile(path);
+      } catch (e) {
+        console.warn('Cleanup failed:', e);
+      }
+    } catch (error: any) {
+      updateTest('Storage', 'error', 'Storage test failed', `${error.code || 'Error'}: ${error.message}`);
     }
 
     setRunning(false);

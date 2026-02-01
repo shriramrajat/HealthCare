@@ -10,7 +10,7 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{email?: string; password?: string}>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   const { login } = useAuth();
   const { addNotification } = useNotifications();
@@ -19,7 +19,7 @@ const Login: React.FC = () => {
   const { submit, isSubmitting, error: submissionError, retry } = useEnhancedForm({
     onSubmit: async (data: { email: string; password: string }) => {
       const userData = await login(data.email, data.password);
-      
+
       addNotification({
         title: 'Login Successful',
         message: `Welcome back, ${userData.name}!`,
@@ -30,11 +30,12 @@ const Login: React.FC = () => {
     },
     onError: (error) => {
       console.error('Login error:', error);
+      console.error('Full error details:', JSON.stringify(error, null, 2));
     }
   });
 
   const validateForm = () => {
-    const newErrors: {email?: string; password?: string} = {};
+    const newErrors: { email?: string; password?: string } = {};
 
     if (!email) {
       newErrors.email = 'Email is required';
@@ -54,7 +55,7 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     await submit({ email, password });
@@ -111,9 +112,8 @@ const Login: React.FC = () => {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className={`pl-10 block w-full rounded-lg border ${
-                    errors.email ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
-                  } px-3 py-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent`}
+                  className={`pl-10 block w-full rounded-lg border ${errors.email ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    } px-3 py-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent`}
                   placeholder="Enter your email"
                 />
               </div>
@@ -135,9 +135,8 @@ const Login: React.FC = () => {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className={`pl-10 pr-10 block w-full rounded-lg border ${
-                    errors.password ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
-                  } px-3 py-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent`}
+                  className={`pl-10 pr-10 block w-full rounded-lg border ${errors.password ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    } px-3 py-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent`}
                   placeholder="Enter your password"
                 />
                 <button
