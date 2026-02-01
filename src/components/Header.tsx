@@ -20,7 +20,7 @@ import {
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
-  const { notifications } = useNotifications();
+  const { notifications, markAsRead } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -193,27 +193,48 @@ const Header: React.FC = () => {
       {/* Notifications Dropdown */}
       {showNotifications && (
         <div className="absolute right-4 top-16 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
             <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+            {unreadCount > 0 && (
+              <button
+                onClick={() => notifications.forEach(n => !n.read && markAsRead(n.id))}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                Mark all read
+              </button>
+            )}
           </div>
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
-              <p className="p-4 text-sm text-gray-500 text-center">No notifications</p>
+              <p className="p-8 text-sm text-gray-500 text-center">No notifications</p>
             ) : (
-              notifications.slice(0, 5).map((notification) => (
+              notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-3 border-b border-gray-100 last:border-b-0 ${!notification.read ? 'bg-blue-50' : ''
+                  onClick={() => !notification.read && markAsRead(notification.id)}
+                  className={`p-3 border-b border-gray-100 last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors ${!notification.read ? 'bg-blue-50' : ''
                     }`}
                 >
-                  <p className="text-sm font-medium text-gray-900">{notification.title}</p>
-                  <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                  <div className="flex justify-between items-start">
+                    <p className={`text-sm ${!notification.read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
+                      {notification.title}
+                    </p>
+                    {!notification.read && (
+                      <span className="h-2 w-2 bg-blue-600 rounded-full mt-1.5 flex-shrink-0"></span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    {new Date(notification.createdAt).toLocaleTimeString()}
+                    {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
               ))
             )}
+          </div>
+          <div className="p-2 border-t border-gray-100 bg-gray-50 rounded-b-lg text-center">
+            <Link to="/notifications" onClick={() => setShowNotifications(false)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+              View Full History
+            </Link>
           </div>
         </div>
       )}

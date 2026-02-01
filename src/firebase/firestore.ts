@@ -693,7 +693,7 @@ export const firestoreService = {
     }
   },
 
-  async createNotification(notification: Omit<Notification, 'id'>) {
+  async createNotification(notification: Omit<Notification, 'id' | 'read' | 'createdAt'>) {
     try {
       await addDoc(collection(db, 'notifications'), {
         ...notification,
