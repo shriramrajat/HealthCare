@@ -681,31 +681,6 @@ export const firestoreService = {
     });
   },
 
-  async markNotificationAsRead(notificationId: string) {
-    try {
-      const notificationRef = doc(db, 'notifications', notificationId);
-      await updateDoc(notificationRef, {
-        read: true
-      });
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-      throw error;
-    }
-  },
-
-  async createNotification(notification: Omit<Notification, 'id' | 'read' | 'createdAt'>) {
-    try {
-      await addDoc(collection(db, 'notifications'), {
-        ...notification,
-        createdAt: new Date().toISOString(), // Use ISO string matching the type, or serverTimestamp if you adjust type
-        read: false
-      });
-    } catch (error) {
-      console.error('Error creating notification:', error);
-      throw error;
-    }
-  },
-
   async deleteNotification(notificationId: string) {
     try {
       await deleteDoc(doc(db, 'notifications', notificationId));
