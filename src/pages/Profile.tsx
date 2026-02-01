@@ -4,6 +4,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 
 import { storageService } from '../firebase/storage';
 import { User, Mail, Phone, Camera, Stethoscope, Activity, Save, Loader } from 'lucide-react';
+import HealthLocker from '../components/HealthLocker';
 
 const Profile: React.FC = () => {
     const { user, updateProfile } = useAuth();
@@ -83,8 +84,6 @@ const Profile: React.FC = () => {
             }
 
             await updateProfile(updates);
-
-
 
             setIsEditing(false);
             addNotification({
@@ -283,6 +282,11 @@ const Profile: React.FC = () => {
                     </form>
                 </div>
             </div>
+
+            {/* Health Locker Section - Only for patients */}
+            {user.role === 'patient' && (
+                <HealthLocker />
+            )}
         </div>
     );
 };
