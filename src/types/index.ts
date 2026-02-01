@@ -105,6 +105,8 @@ export interface Notification {
   type: 'info' | 'success' | 'warning' | 'error';
   read: boolean;
   createdAt: string;
+  userId?: string;
+  link?: string;
 }
 
 export interface EducationalContent {
