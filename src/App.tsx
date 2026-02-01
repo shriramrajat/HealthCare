@@ -28,38 +28,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const NotificationsPage = lazy(() => import('./pages/Notifications')); // Lazy load
 const DebugPage = lazy(() => import('./pages/Debug'));
 
-// ... (existing code) ...
 
-              <Route
-                path="/profile"
-                  element={
-                  user ? (
-                    <ErrorBoundary context={{ component: 'Profile', action: 'load' }}>
-                      <Suspense fallback={<PageLoadingFallback />}>
-                        <Profile />
-                      </Suspense>
-                    </ErrorBoundary>
-                  ) : (
-                    <Navigate to="/login" />
-                  )
-                }
-              />
-              <Route
-                path="/notifications"
-                element={
-                  user ? (
-                    <ErrorBoundary context={{ component: 'Notifications', action: 'load' }}>
-                      <Suspense fallback={<PageLoadingFallback />}>
-                         <NotificationsPage />
-                      </Suspense>
-                    </ErrorBoundary>
-                  ) : (
-                    <Navigate to="/login" />
-                  )
-                }
-              />
-              <Route
-                path="/diagnostic"
 // Test Firebase connection in development
 if (import.meta.env.DEV) {
   import('./firebase/test-connection');
@@ -222,6 +191,20 @@ function AppContent() {
                     <ErrorBoundary context={{ component: 'Reviews', action: 'load' }}>
                       <Suspense fallback={<PageLoadingFallback />}>
                         <Reviews />
+                      </Suspense>
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  user ? (
+                    <ErrorBoundary context={{ component: 'Notifications', action: 'load' }}>
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <NotificationsPage />
                       </Suspense>
                     </ErrorBoundary>
                   ) : (
