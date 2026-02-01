@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Check, X, Search, CheckCircle } from 'lucide-react';
+import { Shield, Check, X, CheckCircle } from 'lucide-react';
 import { firestoreService } from '../firebase/firestore';
 import { User } from '../types';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -59,6 +59,7 @@ const AdminDashboard: React.FC = () => {
     };
 
     const handleReject = (doctorId: string) => {
+        console.log(`Rejecting doctor ${doctorId}`);
         // For now, just remove from list locally or implement delete logic
         // We'll just show a "Not Implemented" toast for safety against accidental deletions in demo
         addNotification({

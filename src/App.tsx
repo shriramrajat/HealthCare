@@ -26,6 +26,7 @@ const Reviews = lazy(() => import('./pages/Reviews'));
 const DiagnosticTest = lazy(() => import('./pages/DiagnosticTest'));
 const Profile = lazy(() => import('./pages/Profile'));
 const NotificationsPage = lazy(() => import('./pages/Notifications')); // Lazy load
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const DebugPage = lazy(() => import('./pages/Debug'));
 
 
@@ -235,6 +236,18 @@ function AppContent() {
                         <DiagnosticTest />
                       </Suspense>
                     </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  user ? (
+                    <Suspense fallback={<PageLoadingFallback />}>
+                      <AdminDashboard />
+                    </Suspense>
                   ) : (
                     <Navigate to="/login" />
                   )
