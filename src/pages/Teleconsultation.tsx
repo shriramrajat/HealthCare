@@ -26,9 +26,16 @@ import { useLocation } from 'react-router-dom';
 
 const Teleconsultation: React.FC = () => {
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
   const location = useLocation();
   const appointment = location.state?.appointment;
-  const { addNotification } = useNotifications();
+
+  const remoteName = appointment
+    ? (user?.role === 'patient' ? appointment.doctorName : appointment.patientName)
+    : (user?.role === 'patient' ? 'Dr. Sarah Johnson' : 'John Doe');
+
+  const remoteInitials = remoteName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+
   const [isInCall, setIsInCall] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
@@ -419,7 +426,7 @@ const Teleconsultation: React.FC = () => {
                 transition={{ duration: 2, repeat: Infinity }}
               >
                 <span className="text-white text-4xl font-bold">
-                  {user?.role === 'patient' ? 'DJ' : 'JD'}
+                  {remoteInitials}
                 </span>
               </motion.div>
               <motion.div
@@ -428,7 +435,7 @@ const Teleconsultation: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                {user?.role === 'patient' ? 'Dr. Sarah Johnson' : 'John Doe'}
+                {remoteName}
               </motion.div>
             </motion.div>
 
