@@ -192,7 +192,7 @@ const Header: React.FC = () => {
 
       {/* Notifications Dropdown */}
       {showNotifications && (
-        <div className="absolute right-4 top-16 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+        <div className="absolute right-0 left-0 mx-4 top-16 md:left-auto md:w-80 md:right-4 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
           <div className="p-4 border-b border-gray-200 flex justify-between items-center">
             <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
             {unreadCount > 0 && (
