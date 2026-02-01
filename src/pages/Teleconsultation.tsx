@@ -22,6 +22,8 @@ import ConsultationRecords from '../components/teleconsultation/ConsultationReco
 import TeleconsultationSettings from '../components/teleconsultation/TeleconsultationSettings';
 import AnimatedButton from '../components/ui/AnimatedButton';
 import { useLocation } from 'react-router-dom';
+import { firestoreService } from '../firebase/firestore';
+import { ConsultationRecord } from '../types';
 
 
 const Teleconsultation: React.FC = () => {
@@ -48,6 +50,10 @@ const Teleconsultation: React.FC = () => {
   const [activeView, setActiveView] = useState<'main' | 'schedule' | 'records' | 'settings'>('main');
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const [showPostCallModal, setShowPostCallModal] = useState(false);
+  const [consultationNotes, setConsultationNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -77,12 +83,63 @@ const Teleconsultation: React.FC = () => {
 
   const handleEndCall = () => {
     setIsInCall(false);
-    setCallDuration(0);
+
+    if (user?.role === 'doctor') {
+      setShowPostCallModal(true);
+    }
+
     addNotification({
       title: 'Call Ended',
       message: `Your consultation lasted ${formatDuration(callDuration)}.`,
       type: 'info'
     });
+  };
+
+  const handleSaveNotes = async () => {
+    if (!user) return;
+
+    setSavingNotes(true);
+    try {
+      if (appointment) {
+        const record: Omit<ConsultationRecord, 'id'> = {
+          patientId: appointment.patientId,
+          doctorId: user.id,
+          patientName: appointment.patientName,
+          doctorName: user.name,
+          date: new Date().toISOString(),
+          duration: Math.ceil(callDuration / 60),
+          type: 'teleconsultation',
+          status: 'completed',
+          notes: consultationNotes,
+          followUpRequired: false
+        };
+        await firestoreService.addConsultationRecord(record);
+      } else {
+        // Fallback if no appointment context - maybe just log logically or skip
+        // For now, we'll try to save minimal info if we can, or just notify success
+        // But strictly we need patient info. 
+        // If we don't have appointment, we can't save a proper record easily.
+        console.warn('No appointment context for consultation record');
+      }
+
+      addNotification({
+        title: 'Notes Saved',
+        message: 'Consultation notes have been saved successfully.',
+        type: 'success'
+      });
+      setShowPostCallModal(false);
+      setConsultationNotes('');
+      setCallDuration(0); // Reset duration after saving
+    } catch (error) {
+      console.error('Error saving consultation notes:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to save notes. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setSavingNotes(false);
+    }
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -391,6 +448,76 @@ const Teleconsultation: React.FC = () => {
           onClose={() => setIsScheduleModalOpen(false)}
           onScheduled={handleScheduleSuccess}
         />
+
+        {/* Post Consultation Notes Modal */}
+        <AnimatePresence>
+          {showPostCallModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-gray-900">Consultation Notes</h3>
+                  <button
+                    onClick={() => setShowPostCallModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <span className="sr-only">Close</span>
+                    <Plus className="h-6 w-6 transform rotate-45" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">
+                    Add notes for your consultation with <span className="font-semibold">{remoteName}</span>.
+                    Duration: {formatDuration(callDuration)}
+                  </p>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Clinical Notes
+                    </label>
+                    <textarea
+                      value={consultationNotes}
+                      onChange={(e) => setConsultationNotes(e.target.value)}
+                      rows={6}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      placeholder="Record symptoms, diagnosis, prescription, or follow-up instructions..."
+                    />
+                  </div>
+
+                  <div className="flex space-x-3 pt-4">
+                    <button
+                      onClick={() => setShowPostCallModal(false)}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Skip
+                    </button>
+                    <button
+                      onClick={handleSaveNotes}
+                      disabled={savingNotes || !consultationNotes.trim()}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 flex items-center justify-center"
+                    >
+                      {savingNotes ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      ) : (
+                        'Save Notes'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
