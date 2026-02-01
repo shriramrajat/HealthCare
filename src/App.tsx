@@ -24,6 +24,7 @@ const Teleconsultation = lazy(() => import('./pages/Teleconsultation'));
 const Education = lazy(() => import('./pages/Education'));
 const Reviews = lazy(() => import('./pages/Reviews'));
 const DiagnosticTest = lazy(() => import('./pages/DiagnosticTest'));
+const Profile = lazy(() => import('./pages/Profile'));
 const DebugPage = lazy(() => import('./pages/Debug'));
 // Test Firebase connection in development
 if (import.meta.env.DEV) {
