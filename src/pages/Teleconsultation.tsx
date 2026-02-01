@@ -15,7 +15,8 @@ import {
   FileText,
   Calendar,
   Clock,
-  Plus
+  Plus,
+  Activity
 } from 'lucide-react';
 import ScheduleConsultationForm from '../components/teleconsultation/ScheduleConsultationForm';
 import ConsultationRecords from '../components/teleconsultation/ConsultationRecords';
@@ -23,8 +24,8 @@ import TeleconsultationSettings from '../components/teleconsultation/Teleconsult
 import AnimatedButton from '../components/ui/AnimatedButton';
 import { useLocation } from 'react-router-dom';
 import { firestoreService } from '../firebase/firestore';
-import { ConsultationRecord, ChatMessage } from '../types';
-
+import { ConsultationRecord, ChatMessage, PrescriptionItem } from '../types';
+import DoctorTools from '../components/teleconsultation/DoctorTools';
 
 const Teleconsultation: React.FC = () => {
   const { user } = useAuth();
@@ -55,6 +56,11 @@ const Teleconsultation: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Doctor Tools State
+  const [showDoctorTools, setShowDoctorTools] = useState(false);
+  const [diagnosis, setDiagnosis] = useState('');
+  const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
 
   const [showPostCallModal, setShowPostCallModal] = useState(false);
   const [consultationNotes, setConsultationNotes] = useState('');
@@ -712,12 +718,27 @@ const Teleconsultation: React.FC = () => {
               onClick={() => setIsChatOpen(!isChatOpen)}
               variant={isChatOpen ? "primary" : "secondary"}
               className="p-3 md:p-4 rounded-full relative"
+              title="Chat"
             >
               <MessageSquare className="h-5 w-5 md:h-6 md:w-6" />
               {messages.length > 0 && !isChatOpen && (
                 <span className="absolute top-0 right-0 h-3 w-3 bg-red-500 rounded-full border-2 border-gray-900"></span>
               )}
             </AnimatedButton>
+
+            {user?.role === 'doctor' && (
+              <AnimatedButton
+                onClick={() => {
+                  setShowDoctorTools(!showDoctorTools);
+                  if (!showDoctorTools) setIsChatOpen(false); // Close chat if opening tools
+                }}
+                variant={showDoctorTools ? "primary" : "secondary"}
+                className="p-3 md:p-4 rounded-full"
+                title="Doctor Tools"
+              >
+                <Activity className="h-5 w-5 md:h-6 md:w-6" />
+              </AnimatedButton>
+            )}
 
             <AnimatedButton
               onClick={handleEndCall}
@@ -730,68 +751,81 @@ const Teleconsultation: React.FC = () => {
         </div>
       </div>
 
-      {/* Desktop Chat Sidebar */}
+      {/* Desktop Sidebar (Chat or Doctor Tools) */}
       <AnimatePresence>
-        {isChatOpen && (
+        {(isChatOpen || (showDoctorTools && user?.role === 'doctor')) && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 320, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             className="hidden md:flex bg-white border-l border-gray-200 flex-col overflow-hidden"
           >
-            <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center min-w-[320px]">
-              <h3 className="font-semibold text-gray-900 flex items-center">
-                <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
-                Consultation Chat
-              </h3>
-              <button onClick={() => setIsChatOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <Plus className="h-5 w-5 transform rotate-45" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 min-w-[320px]">
-              {messages.length === 0 ? (
-                <div className="text-center text-gray-400 mt-10">
-                  <p className="text-sm">No messages yet.</p>
-                  <p className="text-xs">Start the conversation!</p>
+            {showDoctorTools && user?.role === 'doctor' ? (
+              <DoctorTools
+                notes={consultationNotes}
+                setNotes={setConsultationNotes}
+                diagnosis={diagnosis}
+                setDiagnosis={setDiagnosis}
+                prescriptions={prescriptions}
+                setPrescriptions={setPrescriptions}
+              />
+            ) : (
+              <>
+                <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center min-w-[320px]">
+                  <h3 className="font-semibold text-gray-900 flex items-center">
+                    <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
+                    Consultation Chat
+                  </h3>
+                  <button onClick={() => setIsChatOpen(false)} className="text-gray-400 hover:text-gray-600">
+                    <Plus className="h-5 w-5 transform rotate-45" />
+                  </button>
                 </div>
-              ) : (
-                messages.map((msg) => (
-                  <div key={msg.id} className={`flex flex-col ${msg.senderId === user?.id ? 'items-end' : 'items-start'}`}>
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-xs font-medium text-gray-500">{msg.senderName}</span>
-                      <span className="text-[10px] text-gray-400">{msg.timestamp}</span>
-                    </div>
-                    <div className={`rounded-2xl px-4 py-2 text-sm max-w-[90%] shadow-sm ${msg.senderId === user?.id
-                      ? 'bg-blue-600 text-white rounded-br-none'
-                      : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
-                      }`}>
-                      {msg.text}
-                    </div>
-                  </div>
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
 
-            <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white min-w-[320px]">
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                />
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim()}
-                  className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors disabled:bg-blue-300 shadow-md"
-                >
-                  <MessageSquare className="h-5 w-5" />
-                </button>
-              </div>
-            </form>
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 min-w-[320px]">
+                  {messages.length === 0 ? (
+                    <div className="text-center text-gray-400 mt-10">
+                      <p className="text-sm">No messages yet.</p>
+                      <p className="text-xs">Start the conversation!</p>
+                    </div>
+                  ) : (
+                    messages.map((msg) => (
+                      <div key={msg.id} className={`flex flex-col ${msg.senderId === user?.id ? 'items-end' : 'items-start'}`}>
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="text-xs font-medium text-gray-500">{msg.senderName}</span>
+                          <span className="text-[10px] text-gray-400">{msg.timestamp}</span>
+                        </div>
+                        <div className={`rounded-2xl px-4 py-2 text-sm max-w-[90%] shadow-sm ${msg.senderId === user?.id
+                          ? 'bg-blue-600 text-white rounded-br-none'
+                          : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
+                          }`}>
+                          {msg.text}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white min-w-[320px]">
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Type a message..."
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newMessage.trim()}
+                      className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors disabled:bg-blue-300 shadow-md"
+                    >
+                      <MessageSquare className="h-5 w-5" />
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
