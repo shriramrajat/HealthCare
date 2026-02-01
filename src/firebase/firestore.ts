@@ -660,5 +660,58 @@ export const firestoreService = {
       } as ChatMessage));
       callback(messages);
     });
+  },
+
+  // --- Notifications System ---
+
+  subscribeToNotifications(userId: string, callback: (notifications: Notification[]) => void) {
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(20)
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      const notifications = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Notification));
+      callback(notifications);
+    });
+  },
+
+  async markNotificationAsRead(notificationId: string) {
+    try {
+      const notificationRef = doc(db, 'notifications', notificationId);
+      await updateDoc(notificationRef, {
+        read: true
+      });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  },
+
+  async createNotification(notification: Omit<Notification, 'id'>) {
+    try {
+      await addDoc(collection(db, 'notifications'), {
+        ...notification,
+        createdAt: new Date().toISOString(), // Use ISO string matching the type, or serverTimestamp if you adjust type
+        read: false
+      });
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
+  },
+
+  async deleteNotification(notificationId: string) {
+    try {
+      await deleteDoc(doc(db, 'notifications', notificationId));
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      throw error;
+    }
   }
 };
