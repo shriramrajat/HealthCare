@@ -7,10 +7,10 @@ import ReviewForm from '../components/forms/ReviewForm';
 import EditReviewForm from '../components/forms/EditReviewForm';
 import ReviewResponseForm from '../components/forms/ReviewResponseForm';
 import AnimatedModal from '../components/ui/AnimatedModal';
-import { 
-  Star, 
-  Plus, 
-  Search, 
+import {
+  Star,
+  Plus,
+  Search,
   Filter,
   User,
   Calendar,
@@ -36,43 +36,9 @@ const Reviews: React.FC = () => {
 
       try {
         if (user.role === 'patient') {
-          // For patients, we need to get reviews they've written
-          // Since we don't have a getReviewsByPatient method, we'll use mock data for now
-          // In a real implementation, you'd add this method to firestoreService
-          const mockReviews: Review[] = [
-      // Patient's reviews of doctors
-      {
-        id: '1',
-        doctorId: '1',
-        patientId: user?.id || '2',
-        doctorName: 'Dr. Sarah Johnson',
-        patientName: user?.name || 'John Doe',
-        rating: 5,
-        comment: 'Excellent care and very attentive to my concerns. Dr. Johnson always takes time to explain my condition and treatment options thoroughly.',
-        date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: '2',
-        doctorId: '2',
-        patientId: user?.id || '2',
-        doctorName: 'Dr. Michael Brown',
-        patientName: user?.name || 'John Doe',
-        rating: 4,
-        comment: 'Very knowledgeable and professional. The teleconsultation was smooth and convenient.',
-        date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: '3',
-        doctorId: '3',
-        patientId: user?.id || '2',
-        doctorName: 'Dr. Emily Chen',
-        patientName: user?.name || 'John Doe',
-        rating: 5,
-        comment: 'Outstanding cardiologist! She helped me understand my heart condition and provided a comprehensive treatment plan.',
-        date: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString()
-      }
-          ];
-          setReviews(mockReviews);
+          // For patients, get reviews they've written
+          const patientReviews = await firestoreService.getReviewsByPatient(user.id);
+          setReviews(patientReviews);
         } else {
           // For doctors, get reviews about them
           const doctorReviews = await firestoreService.getReviews(user.id);
@@ -80,66 +46,17 @@ const Reviews: React.FC = () => {
         }
       } catch (error) {
         console.error('Error fetching reviews:', error);
-        // Fallback to mock data
-        const mockReviews: Review[] = user?.role === 'patient' ? [] : [
-          // Doctor's reviews from patients
-      {
-        id: '1',
-        doctorId: user?.id || '1',
-        patientId: '2',
-        doctorName: user?.name || 'Dr. Sarah Johnson',
-        patientName: 'John Doe',
-        rating: 5,
-        comment: 'Excellent care and very attentive to my concerns. Always takes time to explain everything clearly.',
-        date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: '2',
-        doctorId: user?.id || '1',
-        patientId: '3',
-        doctorName: user?.name || 'Dr. Sarah Johnson',
-        patientName: 'Jane Smith',
-        rating: 4,
-        comment: 'Very knowledgeable and helpful. Would recommend to others.',
-        date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: '3',
-        doctorId: user?.id || '1',
-        patientId: '4',
-        doctorName: user?.name || 'Dr. Sarah Johnson',
-        patientName: 'Bob Wilson',
-        rating: 5,
-        comment: 'Outstanding physician! Great communication and follow-up care.',
-        date: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: '4',
-        doctorId: user?.id || '1',
-        patientId: '5',
-        doctorName: user?.name || 'Dr. Sarah Johnson',
-        patientName: 'Alice Cooper',
-        rating: 5,
-        comment: 'Very professional and caring. Helped me manage my diabetes effectively.',
-        date: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: '5',
-        doctorId: user?.id || '1',
-        patientId: '6',
-        doctorName: user?.name || 'Dr. Sarah Johnson',
-        patientName: 'David Lee',
-        rating: 3,
-        comment: 'Good doctor but the appointment was rushed. Could benefit from more time with patients.',
-        date: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString()
-      }
-        ];
-        setReviews(mockReviews);
+        addNotification({
+          title: 'Error',
+          message: 'Failed to load reviews. Please try again.',
+          type: 'error'
+        });
+        setReviews([]);
       }
     };
 
     fetchReviews();
-  }, [user]);
+  }, [user, addNotification]);
 
   useEffect(() => {
     let filtered = reviews;
@@ -160,7 +77,7 @@ const Reviews: React.FC = () => {
       filtered = filtered.filter(review => review.rating === rating);
     }
 
-    setFilteredReviews(filtered.sort((a, b) => 
+    setFilteredReviews(filtered.sort((a, b) =>
       new Date(b.date).getTime() - new Date(a.date).getTime()
     ));
   }, [reviews, searchTerm, ratingFilter, user]);
@@ -181,12 +98,12 @@ const Reviews: React.FC = () => {
 
   const handleAddReview = async (reviewData: any) => {
     if (!user) return;
-    
+
     setIsSubmittingReview(true);
     try {
       // Get doctor name for the review
       const doctor = await firestoreService.getUser(reviewData.doctorId) as any;
-      
+
       const newReview: Omit<Review, 'id'> = {
         doctorId: reviewData.doctorId,
         patientId: user.id,
@@ -198,10 +115,10 @@ const Reviews: React.FC = () => {
       };
 
       await firestoreService.addReview(newReview);
-      
+
       // Update local state to show the new review immediately
       setReviews(prev => [{ ...newReview, id: Date.now().toString() }, ...prev]);
-      
+
       setShowAddReview(false);
       addNotification({
         title: 'Review Submitted',
@@ -222,7 +139,7 @@ const Reviews: React.FC = () => {
 
   const handleEditReview = async (reviewData: any) => {
     if (!editingReview || !user) return;
-    
+
     setIsUpdatingReview(true);
     try {
       const updatedReview: Partial<Review> = {
@@ -234,14 +151,14 @@ const Reviews: React.FC = () => {
       };
 
       await firestoreService.updateReview(editingReview.id, updatedReview);
-      
+
       // Update local state
-      setReviews(prev => prev.map(review => 
-        review.id === editingReview.id 
+      setReviews(prev => prev.map(review =>
+        review.id === editingReview.id
           ? { ...review, ...updatedReview }
           : review
       ));
-      
+
       setEditingReview(null);
       addNotification({
         title: 'Review Updated',
@@ -262,7 +179,7 @@ const Reviews: React.FC = () => {
 
   const handleRespondToReview = async (responseData: any) => {
     if (!respondingToReview || !user) return;
-    
+
     setIsUpdatingReview(true);
     try {
       const response = {
@@ -271,20 +188,20 @@ const Reviews: React.FC = () => {
       };
 
       await firestoreService.addReviewResponse(respondingToReview.id, response);
-      
+
       // Update local state
-      setReviews(prev => prev.map(review => 
-        review.id === respondingToReview.id 
-          ? { 
-              ...review, 
-              response: {
-                ...response,
-                date: new Date().toISOString()
-              }
+      setReviews(prev => prev.map(review =>
+        review.id === respondingToReview.id
+          ? {
+            ...review,
+            response: {
+              ...response,
+              date: new Date().toISOString()
             }
+          }
           : review
       ));
-      
+
       setRespondingToReview(null);
       addNotification({
         title: 'Response Sent',
@@ -313,13 +230,13 @@ const Reviews: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Reviews</h1>
           <p className="text-gray-600 mt-1">
-            {user?.role === 'patient' 
+            {user?.role === 'patient'
               ? 'Share your experience and help others find great healthcare providers'
               : 'Patient feedback to help you improve your practice'
             }
           </p>
         </div>
-        
+
         {user?.role === 'patient' && (
           <button
             onClick={() => setShowAddReview(true)}
@@ -342,7 +259,7 @@ const Reviews: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center space-x-3">
             <User className="h-8 w-8 text-blue-600" />
@@ -352,7 +269,7 @@ const Reviews: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center space-x-3">
             <TrendingUp className="h-8 w-8 text-green-600" />
@@ -362,7 +279,7 @@ const Reviews: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center space-x-3">
             <Calendar className="h-8 w-8 text-purple-600" />
@@ -372,8 +289,8 @@ const Reviews: React.FC = () => {
                 {reviews.filter(r => {
                   const reviewDate = new Date(r.date);
                   const currentDate = new Date();
-                  return reviewDate.getMonth() === currentDate.getMonth() && 
-                         reviewDate.getFullYear() === currentDate.getFullYear();
+                  return reviewDate.getMonth() === currentDate.getMonth() &&
+                    reviewDate.getFullYear() === currentDate.getFullYear();
                 }).length}
               </p>
             </div>
@@ -392,7 +309,7 @@ const Reviews: React.FC = () => {
                   <span className="text-sm text-gray-600">{rating}</span>
                   <Star className="h-4 w-4 text-yellow-400 fill-current" />
                 </div>
-                
+
                 <div className="flex-1 bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-yellow-400 h-2 rounded-full"
@@ -401,7 +318,7 @@ const Reviews: React.FC = () => {
                     }}
                   ></div>
                 </div>
-                
+
                 <span className="text-sm text-gray-600 w-8">
                   {ratingDistribution[rating as keyof typeof ratingDistribution]}
                 </span>
@@ -466,23 +383,22 @@ const Reviews: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-1">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`h-5 w-5 ${
-                        i < review.rating 
-                          ? 'text-yellow-400 fill-current' 
+                      className={`h-5 w-5 ${i < review.rating
+                          ? 'text-yellow-400 fill-current'
                           : 'text-gray-300'
-                      }`}
+                        }`}
                     />
                   ))}
                 </div>
               </div>
-              
+
               <p className="text-gray-700 leading-relaxed">{review.comment}</p>
-              
+
               {/* Review metadata */}
               <div className="mt-3 flex items-center space-x-4 text-xs text-gray-500">
                 {review.edited && (
@@ -515,12 +431,12 @@ const Reviews: React.FC = () => {
                   </p>
                 </div>
               )}
-              
+
               {/* Action buttons */}
               <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
                 <div className="flex space-x-3">
                   {user?.role === 'patient' && review.patientId === user.id && (
-                    <button 
+                    <button
                       onClick={() => setEditingReview(review)}
                       className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1"
                     >
@@ -528,9 +444,9 @@ const Reviews: React.FC = () => {
                       <span>Edit Review</span>
                     </button>
                   )}
-                  
+
                   {user?.role === 'doctor' && review.doctorId === user.id && !review.response && (
-                    <button 
+                    <button
                       onClick={() => setRespondingToReview(review)}
                       className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
                     >
@@ -539,7 +455,7 @@ const Reviews: React.FC = () => {
                     </button>
                   )}
                 </div>
-                
+
                 {/* Category ratings display */}
                 {review.categories && (
                   <div className="flex items-center space-x-2 text-xs text-gray-500">
@@ -555,8 +471,8 @@ const Reviews: React.FC = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <Star className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || ratingFilter !== 'all' 
-                ? 'No reviews match your filters' 
+              {searchTerm || ratingFilter !== 'all'
+                ? 'No reviews match your filters'
                 : 'No reviews yet'
               }
             </h3>

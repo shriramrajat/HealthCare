@@ -17,12 +17,12 @@ import {
   DocumentData
 } from 'firebase/firestore';
 import { db } from './config';
-import { 
-  HealthMetric, 
-  Medication, 
-  Symptom, 
-  Appointment, 
-  Review, 
+import {
+  HealthMetric,
+  Medication,
+  Symptom,
+  Appointment,
+  Review,
   EducationalContent,
   Notification,
   User
@@ -111,11 +111,11 @@ export const firestoreService = {
     try {
       const metricRef = doc(db, COLLECTIONS.HEALTH_METRICS, id);
       const updateData: any = { ...updates };
-      
+
       if (updates.recordedAt) {
         updateData.recordedAt = Timestamp.fromDate(new Date(updates.recordedAt));
       }
-      
+
       await updateDoc(metricRef, updateData);
     } catch (error) {
       console.error('Error updating health metric:', error);
@@ -192,14 +192,14 @@ export const firestoreService = {
     try {
       const medicationRef = doc(db, COLLECTIONS.MEDICATIONS, id);
       const updateData: any = { ...updates };
-      
+
       if (updates.startDate) {
         updateData.startDate = Timestamp.fromDate(new Date(updates.startDate));
       }
       if (updates.endDate) {
         updateData.endDate = Timestamp.fromDate(new Date(updates.endDate));
       }
-      
+
       await updateDoc(medicationRef, updateData);
     } catch (error) {
       console.error('Error updating medication:', error);
@@ -308,11 +308,11 @@ export const firestoreService = {
     try {
       const appointmentRef = doc(db, COLLECTIONS.APPOINTMENTS, id);
       const updateData: any = { ...updates };
-      
+
       if (updates.date) {
         updateData.date = Timestamp.fromDate(new Date(updates.date));
       }
-      
+
       await updateDoc(appointmentRef, updateData);
     } catch (error) {
       console.error('Error updating appointment:', error);
@@ -349,6 +349,25 @@ export const firestoreService = {
     }
   },
 
+  async getReviewsByPatient(patientId: string): Promise<Review[]> {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.REVIEWS),
+        where('patientId', '==', patientId),
+        orderBy('date', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map((doc: DocumentData) => ({
+        id: doc.id,
+        ...doc.data(),
+        date: doc.data().date?.toDate?.()?.toISOString() || doc.data().date
+      })) as Review[];
+    } catch (error) {
+      console.error('Error getting patient reviews:', error);
+      throw error;
+    }
+  },
+
   async addReview(review: Omit<Review, 'id'>): Promise<string> {
     try {
       const docRef = await addDoc(collection(db, COLLECTIONS.REVIEWS), {
@@ -366,7 +385,7 @@ export const firestoreService = {
     try {
       const reviewRef = doc(db, COLLECTIONS.REVIEWS, id);
       const updateData: any = { ...updates };
-      
+
       if (updates.date) {
         updateData.date = Timestamp.fromDate(new Date(updates.date));
       }
@@ -379,7 +398,7 @@ export const firestoreService = {
           date: Timestamp.fromDate(new Date(updates.response.date))
         };
       }
-      
+
       await updateDoc(reviewRef, updateData);
     } catch (error) {
       console.error('Error updating review:', error);
@@ -409,7 +428,7 @@ export const firestoreService = {
         collection(db, COLLECTIONS.EDUCATIONAL_CONTENT),
         orderBy('publishedAt', 'desc')
       );
-      
+
       if (category) {
         q = query(
           collection(db, COLLECTIONS.EDUCATIONAL_CONTENT),
@@ -417,7 +436,7 @@ export const firestoreService = {
           orderBy('publishedAt', 'desc')
         );
       }
-      
+
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map((doc: DocumentData) => ({
         id: doc.id,
