@@ -151,3 +151,15 @@ export interface TeleconsultationSettings {
   preferredLanguage: string;
   timezone: string;
 }
+
+
+export interface MedicalDocument {
+  id: string;
+  userId: string;
+  name: string;
+  type: 'lab_report' | 'prescription' | 'x_ray' | 'other';
+  url: string;
+  uploadedAt: string;
+  size: number;
+  path: string; // Storage path to allow deletion
+}
