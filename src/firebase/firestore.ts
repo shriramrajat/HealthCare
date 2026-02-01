@@ -25,7 +25,8 @@ import {
   Review,
   EducationalContent,
   Notification,
-  User
+  User,
+  MedicalDocument
 } from '../types';
 
 // Pagination interface
@@ -595,6 +596,36 @@ export const firestoreService = {
       });
     } catch (error) {
       console.error('Error saving teleconsultation settings:', error);
+      throw error;
+    }
+  },
+
+  // Add Medical Document
+  async addMedicalDocument(docData: Omit<MedicalDocument, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'medical_documents'), docData);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding medical document:', error);
+      throw error;
+    }
+  },
+
+  // Get Medical Documents for a User
+  async getMedicalDocuments(userId: string): Promise<MedicalDocument[]> {
+    try {
+      const q = query(
+        collection(db, 'medical_documents'),
+        where('userId', '==', userId),
+        orderBy('uploadedAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as MedicalDocument));
+    } catch (error) {
+      console.error('Error fetching medical documents:', error);
       throw error;
     }
   }
