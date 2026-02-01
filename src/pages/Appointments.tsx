@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { firestoreService } from '../firebase/firestore';
@@ -24,6 +25,7 @@ import BookingFormModal from '../components/BookingFormModal';
 const Appointments: React.FC = () => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
   const [showBookingForm, setShowBookingForm] = useState(false);
@@ -145,6 +147,7 @@ const Appointments: React.FC = () => {
       message: 'Redirecting to video call...',
       type: 'info'
     });
+    navigate('/teleconsultation');
   };
 
   const getStatusStats = () => {

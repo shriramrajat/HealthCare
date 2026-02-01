@@ -19,14 +19,19 @@ const BookingFormModal: React.FC<BookingFormModalProps> = ({ onClose, onSuccess 
     const [appointmentType, setAppointmentType] = useState<'in-person' | 'teleconsultation'>('in-person');
     const [notes, setNotes] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const loadDoctors = async () => {
             try {
+                setError(null); // Reset error
                 const doctorsList = await firestoreService.getDoctors();
+                console.log('Doctors loaded:', doctorsList);
                 setDoctors(doctorsList);
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error loading doctors:', error);
+                // Set visible error message
+                setError(error.message || 'Failed to load doctor list');
             }
         };
         loadDoctors();
@@ -86,6 +91,12 @@ const BookingFormModal: React.FC<BookingFormModalProps> = ({ onClose, onSuccess 
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Book New Appointment</h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {error && (
+                        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">
+                            {error}
+                        </div>
+                    )}
+
                     {/* Doctor Selection */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -98,11 +109,15 @@ const BookingFormModal: React.FC<BookingFormModalProps> = ({ onClose, onSuccess 
                             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
                             <option value="">Choose a provider...</option>
-                            {doctors.map((doctor) => (
-                                <option key={doctor.id} value={doctor.id}>
-                                    {doctor.name} - {doctor.specialization}
-                                </option>
-                            ))}
+                            {doctors.length === 0 ? (
+                                <option value="" disabled>No doctors found (Register a Doctor first)</option>
+                            ) : (
+                                doctors.map((doctor) => (
+                                    <option key={doctor.id} value={doctor.id}>
+                                        {doctor.name} {doctor.specialization ? `- ${doctor.specialization}` : ''}
+                                    </option>
+                                ))
+                            )}
                         </select>
                     </div>
 
