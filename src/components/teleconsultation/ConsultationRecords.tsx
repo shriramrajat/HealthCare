@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FileText, 
-  Search, 
-  Calendar, 
-  Clock, 
-  User, 
-  Video, 
+import {
+  FileText,
+  Search,
+  Calendar,
+  Clock,
+  User,
+  Video,
   MapPin,
   Download,
   Eye,
@@ -16,6 +16,7 @@ import {
   Pill,
   AlertCircle
 } from 'lucide-react';
+import { firestoreService } from '../../firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { ConsultationRecord } from '../../types';
 import AnimatedButton from '../ui/AnimatedButton';
@@ -36,89 +37,22 @@ const ConsultationRecords: React.FC<ConsultationRecordsProps> = ({ className = '
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data for demonstration
-  const mockRecords: ConsultationRecord[] = [
-    {
-      id: '1',
-      patientId: user?.id || '',
-      doctorId: 'doc1',
-      patientName: user?.name || 'John Doe',
-      doctorName: 'Dr. Sarah Johnson',
-      date: '2024-01-15T10:00:00Z',
-      duration: 30,
-      type: 'teleconsultation',
-      status: 'completed',
-      notes: 'Patient reported improvement in symptoms. Blood pressure readings are within normal range.',
-      prescription: 'Continue current medication. Increase water intake.',
-      followUpRequired: true,
-      diagnosis: 'Hypertension - controlled',
-      symptoms: ['headache', 'dizziness'],
-      vitalSigns: {
-        bloodPressure: '120/80',
-        heartRate: 72,
-        temperature: 98.6,
-        weight: 165
-      }
-    },
-    {
-      id: '2',
-      patientId: user?.id || '',
-      doctorId: 'doc2',
-      patientName: user?.name || 'John Doe',
-      doctorName: 'Dr. Michael Chen',
-      date: '2024-01-08T14:30:00Z',
-      duration: 45,
-      type: 'in-person',
-      status: 'completed',
-      notes: 'Routine checkup. All vitals normal. Discussed lifestyle modifications.',
-      prescription: 'Vitamin D supplement, 1000 IU daily',
-      followUpRequired: false,
-      diagnosis: 'Annual physical - normal',
-      symptoms: [],
-      vitalSigns: {
-        bloodPressure: '118/75',
-        heartRate: 68,
-        temperature: 98.4,
-        weight: 163
-      }
-    },
-    {
-      id: '3',
-      patientId: user?.id || '',
-      doctorId: 'doc1',
-      patientName: user?.name || 'John Doe',
-      doctorName: 'Dr. Sarah Johnson',
-      date: '2023-12-20T09:15:00Z',
-      duration: 25,
-      type: 'teleconsultation',
-      status: 'completed',
-      notes: 'Follow-up for diabetes management. Blood sugar levels improving.',
-      prescription: 'Adjust metformin dosage to 500mg twice daily',
-      followUpRequired: true,
-      diagnosis: 'Type 2 Diabetes - improving',
-      symptoms: ['fatigue', 'increased thirst'],
-      vitalSigns: {
-        bloodPressure: '125/82',
-        heartRate: 75,
-        weight: 167
-      }
-    }
-  ];
-
   useEffect(() => {
     loadConsultationRecords();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     filterAndSortRecords();
   }, [records, searchTerm, filterType, filterStatus, sortBy, sortOrder]);
 
   const loadConsultationRecords = async () => {
+    if (!user) return;
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setRecords(mockRecords);
+      const fetchedRecords = await firestoreService.getConsultationRecords(user.id, user.role);
+      // Ensure the fetched data matches the type and fix any date string issues if necessary
+      // The service already returns formatted objects, so we can cast or trust it.
+      setRecords(fetchedRecords as ConsultationRecord[]);
     } catch (error) {
       console.error('Error loading consultation records:', error);
     } finally {
@@ -151,7 +85,7 @@ const ConsultationRecords: React.FC<ConsultationRecordsProps> = ({ className = '
     // Apply sorting
     filtered.sort((a, b) => {
       let comparison = 0;
-      
+
       switch (sortBy) {
         case 'date':
           comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -252,7 +186,7 @@ const ConsultationRecords: React.FC<ConsultationRecordsProps> = ({ className = '
               />
             </div>
           </div>
-          
+
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as any)}
@@ -312,7 +246,7 @@ const ConsultationRecords: React.FC<ConsultationRecordsProps> = ({ className = '
                             {record.doctorName}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <Calendar className="h-4 w-4" />
                           <span>{formatDate(record.date)}</span>
