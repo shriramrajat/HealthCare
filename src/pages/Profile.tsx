@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
-import { firestoreService } from '../firebase/firestore';
+
 import { storageService } from '../firebase/storage';
 import { User, Mail, Phone, Camera, Stethoscope, Activity, Save, Loader } from 'lucide-react';
 
@@ -84,8 +84,7 @@ const Profile: React.FC = () => {
 
             await updateProfile(updates);
 
-            // Also update in Firestore directly to be safe (though auth context usually handles this)
-            await firestoreService.updateUser(user.id, updates);
+
 
             setIsEditing(false);
             addNotification({
