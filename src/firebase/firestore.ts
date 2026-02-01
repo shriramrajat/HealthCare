@@ -486,10 +486,11 @@ export const firestoreService = {
     }
   },
 
-  async addNotification(notification: Omit<Notification, 'id'>): Promise<string> {
+  async addNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'read'> & Partial<Pick<Notification, 'createdAt' | 'read'>>): Promise<string> {
     try {
       const docRef = await addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), {
         ...notification,
+        read: notification.read || false,
         createdAt: serverTimestamp()
       });
       return docRef.id;

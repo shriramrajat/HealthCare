@@ -74,7 +74,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       // Also show a toast for immediate feedback
       addNotification(notification);
 
-      await firestoreService.createNotification({
+      await firestoreService.addNotification({
         ...notification,
         userId: user.id
       });
